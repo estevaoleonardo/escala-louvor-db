@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Escala de Louvor - Verbo da Vida Zona Norte</title>
+  <!-- Tailwind CSS compilado via CLI -->
+  <link href="./src/output.css" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      
+    }
+    .show-toast {
+      transform: translateY(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen py-6 px-4 transition-colors duration-300">
+<!-- TELA DE LOGIN -->
+<div id="loginScreen" class="max-w-md mx-auto bg-white shadow-md rounded-lg p-6 space-y-6">
+  <h1 class="text-2xl font-bold text-center text-indigo-700">Login</h1>
+  <form id="loginForm" class="space-y-4">
+    <div>
+      <label class="block text-sm font-medium text-gray-700">Usuário</label>
+      <input type="text" id="username" required class="mt-1 block w-full border border-gray-300 rounded-md p-2" />
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-gray-700">Senha</label>
+      <input type="password" id="password" required class="mt-1 block w-full border border-gray-300 rounded-md p-2" />
+    </div>
+    <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-md transition">
+      Entrar
+    </button>
+  </form>
+  <div id="registerForm" class="mt-4 space-y-4">
+    <h2 class="text-lg font-semibold">Registrar novo usuário</h2>
+    <input type="text" id="newUser" placeholder="Novo usuário" class="w-full border border-gray-300 rounded-md p-2" />
+    <input type="password" id="newPass" placeholder="Senha" class="w-full border border-gray-300 rounded-md p-2" />
+    <button onclick="registrarUsuario()" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-md transition">
+      Registrar
+    </button>
+  </div>
+</div>
+
+<!-- TELA DO SISTEMA -->
+<div id="mainApp" class="hidden"></div>
+
+<!-- Template da tela principal -->
+<template id="mainAppTemplate">
+  <div class="max-w-4xl mx-auto bg-white shadow-md rounded-lg p-6 space-y-6 dark:bg-gray-800 dark:text-white transition-colors duration-300">
+    <div class="flex justify-between items-center">
+      <h1 class="text-2xl font-bold text-indigo-800 dark:text-indigo-500"> Louvor Verbo Zona Norte</h1>
+      <button id="logoutBtn" class="text-sm text-red-600 hover:text-red-800 underline dark:text-red-400">Sair</button>
+    </div>
+    <button id="exportarPDF" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md transition">
+      Exportar como PDF
+    </button>
+    <!-- Formulário de Escala -->
+    <form id="escalaForm" class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Data</label>
+        <input type="date" id="data" required class="mt-1 block w-full border border-gray-300 rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Bateria</label>
+          <select id="bateria" required class="mt-1 block w-full border border-gray-300 rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+            <option value="">Selecione</option>
+            <option value="Robinho">Robinho</option>
+            <option value="Anderson">Anderson</option>
+            <option value="Léo">Léo</option>
+            <option value="Pr. Tarcísio">Pr. Tarcísio</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Baixo</label>
+          <select id="baixo" required class="mt-1 block w-full border border-gray-300 rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+            <option value="">Selecione</option>
+            <option value="Jason">Jason</option>
+            <option value="Rafael">Rafael</option>
+            <option value="Davi">Davi</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Teclado</label>
+          <select id="teclado" required class="mt-1 block w-full border border-gray-300 rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+            <option value="">Selecione</option>
+            <option value="Paulo">Paulo</option>
+            <option value="Manoel">Manoel</option>
+            <option value="Estevão">Estevão</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Violão</label>
+          <select id="violao" required class="mt-1 block w-full border border-gray-300 rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+            <option value="">Selecione</option>
+            <option value="Evelyne">Evelyne</option>
+            <option value="Jonson">Jonson</option>
+            <option value="Daniel">Daniel</option>
+            <option value="Ely">Ely</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Guitarra</label>
+          <select id="guitarra" required class="mt-1 block w-full border border-gray-300 rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+            <option value="">Selecione</option>
+            <option value="Renato">Renato</option>
+            <option value="Diogo">Diogo</option>
+            <option value="Medeiros">Medeiros</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Percussão</label>
+          <select id="percussao" required class="mt-1 block w-full border border-gray-300 rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+            <option value="">Selecione</option>
+            <option value="Michel">Michel</option>
+            <option value="Jully">Jully</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Vocais</label>
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-2 mt-1">
+          <select id="vocal1" class="border border-gray-300 rounded-md p-1 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+            <option value="">Selecione</option>
+            <option value="Mariza">Mariza</option>
+            <option value="Rebeca">Rebeca</option>
+            <option value="Leila">Leila</option>
+            <option value="Ciro">Ciro</option>
+            <option value="Lucas">Lucas</option>
+            <option value="Pedro">Pedro</option>
+            <option value="Felipe">Felipe</option>
+            <option value="Sinara">Sinara</option>
+            <option value="Karen">Karen</option>
+            <option value="Mayara">Mayara</option>
+            <option value="Natália">Natália</option>
+          </select>
+          <select id="vocal2" class="border border-gray-300 rounded-md p-1 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+            <option value="">Selecione</option>
+            <option value="Mariza">Mariza</option>
+            <option value="Rebeca">Rebeca</option>
+            <option value="Leila">Leila</option>
+            <option value="Ciro">Ciro</option>
+            <option value="Lucas">Lucas</option>
+            <option value="Pedro">Pedro</option>
+            <option value="Felipe">Felipe</option>
+            <option value="Sinara">Sinara</option>
+            <option value="Karen">Karen</option>
+            <option value="Mayara">Mayara</option>
+            <option value="Natália">Natália</option>
+          </select>
+          <select id="vocal3" class="border border-gray-300 rounded-md p-1 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+           <option value="">Selecione</option>
+            <option value="Mariza">Mariza</option>
+            <option value="Rebeca">Rebeca</option>
+            <option value="Leila">Leila</option>
+            <option value="Ciro">Ciro</option>
+            <option value="Lucas">Lucas</option>
+            <option value="Pedro">Pedro</option>
+            <option value="Felipe">Felipe</option>
+            <option value="Sinara">Sinara</option>
+            <option value="Karen">Karen</option>
+            <option value="Mayara">Mayara</option>
+            <option value="Natália">Natália</option>
+          </select>
+          <select id="vocal4" class="border border-gray-300 rounded-md p-1 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+            <option value="">Selecione</option>
+            <option value="Mariza">Mariza</option>
+            <option value="Rebeca">Rebeca</option>
+            <option value="Leila">Leila</option>
+            <option value="Ciro">Ciro</option>
+            <option value="Lucas">Lucas</option>
+            <option value="Pedro">Pedro</option>
+            <option value="Felipe">Felipe</option>
+            <option value="Sinara">Sinara</option>
+            <option value="Karen">Karen</option>
+            <option value="Mayara">Mayara</option>
+            <option value="Natália">Natália</option>
+          </select>
+          <select id="vocal5" class="border border-gray-300 rounded-md p-1 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+            <option value="">Selecione</option>
+            <option value="Mariza">Mariza</option>
+            <option value="Rebeca">Rebeca</option>
+            <option value="Leila">Leila</option>
+            <option value="Ciro">Ciro</option>
+            <option value="Lucas">Lucas</option>
+            <option value="Pedro">Pedro</option>
+            <option value="Felipe">Felipe</option>
+            <option value="Sinara">Sinara</option>
+            <option value="Karen">Karen</option>
+            <option value="Mayara">Mayara</option>
+            <option value="Natália">Natália</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Músicas (uma por linha)</label>
+        <textarea id="musicas" placeholder="Cole links ou nomes das músicas..." rows="3" class="mt-1 block w-full border border-gray-300 rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"></textarea>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Notas Gerais</label>
+        <textarea id="cifras" placeholder="Cifras ou observações..." rows="3" class="mt-1 block w-full border border-gray-300 rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"></textarea>
+      </div>
+      <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-md transition">
+        Adicionar Escala
+      </button>
+    </form>
+    <!-- Campo de Busca -->
+    <div>
+      <input type="text" id="filtroBusca" placeholder="Buscar por data ou nome do músico..." class="w-full border border-gray-300 rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+    </div>
+    <!-- Lista de Escalas -->
+    <div id="escalaList" class="space-y-4"></div>
+    <!-- Botões Extras -->
+    <div class="flex flex-col sm:flex-row gap-2">
+      <button id="abrirTrocaBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md transition">
+        Solicitar Troca de Escala
+      </button>
+      <button id="limparEscalas" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-md transition">
+        Limpar Escalas
+      </button>
+    </div>
+    <!-- Formulário de Troca -->
+    <div id="formTroca" class="hidden mt-4 border-t pt-4 space-y-2">
+      <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-200">Solicitação de Troca</h2>
+      <form id="trocaForm" class="space-y-2">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Data da Escala</label>
+          <input type="date" id="trocaData" required class="mt-1 block w-full border border-gray-300 rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Função</label>
+          <input type="text" id="trocaFuncao" placeholder="Ex: Teclado, Vocal 2..." required class="mt-1 block w-full border border-gray-300 rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Seu Nome</label>
+          <input type="text" id="trocaNome" placeholder="Seu nome completo" required class="mt-1 block w-full border border-gray-300 rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Justificativa / Sugerir substituto</label>
+          <textarea id="trocaJustificativa" placeholder="Motivo e sugestão de substituto..." required class="mt-1 block w-full border border-gray-300 rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white" rows="3"></textarea>
+        </div>
+        <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-md transition">
+          Enviar Solicitação
+        </button>
+      </form>
+    </div>
+    <!-- Toast -->
+    <div id="toast" class="fixed bottom-4 right-4 hidden bg-green-500 text-white px-4 py-2 rounded shadow-lg transition transform translate-y-2 opacity-0 pointer-events-none z-50">
+      Ação realizada!
+    </div>
+    <!-- Toggle Dark Mode -->
+    <button id="toggleDarkMode" class="absolute top-4 right-4 bg-gray-800 text-white px-3 py-1 rounded dark:bg-gray-700">🌙 Modo Escuro</button>
+  </div>
+</template>
+
+<!-- Biblioteca jsPDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script> 
+
+<!-- Script Principal -->
+<script>
+ // script.js
+
+// Inicialização segura dos usuários
+let usuarios = JSON.parse(localStorage.getItem("usuarios"));
+if (!usuarios) {
+  usuarios = [
+    { username: "admin", password: "1234" },
+    { username: "lucas", password: "senha123" }
+  ];
+  localStorage.setItem("usuarios", JSON.stringify(usuarios));
+}
+
+let escalas = [];
+let escalaEditando = null;
+
+// --- Funções iniciais ---
+
+function carregarDoLocalStorage() {
+  const dados = localStorage.getItem('escalas-louvor');
+  if (dados) {
+    escalas = JSON.parse(dados);
+    renderizarEscalas();
+  }
+}
+
+function salvarNoLocalStorage() {
+  localStorage.setItem('escalas-louvor', JSON.stringify(escalas));
+}
+
+function mostrarToast(mensagem) {
+  const toast = document.getElementById("toast");
+  if (!toast) return;
+  toast.textContent = mensagem;
+  toast.classList.add("show-toast");
+  setTimeout(() => toast.classList.remove("show-toast"), 3000);
+}
+
+// --- Login e Registro ---
+
+function handleLogin(e) {
+  e.preventDefault();
+  const user = document.getElementById("username").value.trim();
+  const pass = document.getElementById("password").value.trim();
+  const usuario = usuarios.find(u => u.username === user && u.password === pass);
+  if (usuario) {
+    localStorage.setItem("usuario-logado", usuario.username);
+    mostrarApp();
+  } else {
+    alert("Usuário ou senha inválidos.");
+  }
+}
+
+function registrarUsuario() {
+  const user = document.getElementById("newUser").value.trim();
+  const pass = document.getElementById("newPass").value.trim();
+  if (!user || !pass) {
+    alert("Preencha todos os campos.");
+    return;
+  }
+
+  if (usuarios.some(u => u.username === user)) {
+    alert("Usuário já existe.");
+    return;
+  }
+
+  usuarios.push({ username: user, password: pass });
+  localStorage.setItem("usuarios", JSON.stringify(usuarios));
+  alert("Usuário registrado com sucesso!");
+}
+
+// --- Exibição do App ---
+
+function mostrarApp() {
+  const login = document.getElementById("loginScreen");
+  const main = document.getElementById("mainApp");
+  const template = document.getElementById("mainAppTemplate");
+  if (!login || !main || !template) return;
+
+  login.style.display = "none";
+  const clone = template.content.cloneNode(true);
+  main.innerHTML = "";
+  main.appendChild(clone);
+  main.classList.remove("hidden");
+
+  initializeAppElements();
+  carregarDoLocalStorage();
+}
+
+function initializeAppElements() {
+  const escalaForm = document.getElementById("escalaForm");
+  const escalaList = document.getElementById("escalaList");
+  const filtroBusca = document.getElementById("filtroBusca");
+  const limparEscalas = document.getElementById("limparEscalas");
+  const abrirTrocaBtn = document.getElementById("abrirTrocaBtn");
+  const formTroca = document.getElementById("formTroca");
+
+  if (!escalaForm || !escalaList || !filtroBusca || !limparEscalas || !abrirTrocaBtn || !formTroca) return;
+
+  escalaForm.addEventListener("submit", handleSubmit);
+  filtroBusca.addEventListener("input", renderizarEscalas);
+  limparEscalas.addEventListener("click", limparEscalasHandler);
+  abrirTrocaBtn.addEventListener("click", () => formTroca.classList.toggle("hidden"));
+  document.getElementById("trocaForm")?.addEventListener("submit", handleTrocaSubmit);
+  document.getElementById("logoutBtn")?.addEventListener("click", logoutHandler);
+  document.getElementById("toggleDarkMode")?.addEventListener("click", toggleDarkMode);
+  document.getElementById("exportarPDF")?.addEventListener("click", exportarParaPDF);
+}
+
+// --- Formulário Escala ---
+
+function handleSubmit(e) {
+  e.preventDefault();
+  const campos = ["data", "bateria", "baixo", "teclado", "violao", "guitarra", "percussao"];
+  for (let campo of campos) {
+    if (!document.getElementById(campo).value.trim()) {
+      alert("Preencha todos os campos obrigatórios.");
+      return;
+    }
+  }
+
+  const musicasRaw = document.getElementById("musicas").value.split("\n").map(m => m.trim()).filter(Boolean);
+  const musicas = musicasRaw.map(m => {
+    try {
+      const url = new URL(m);
+      return `<a href="${url}" target="_blank" class="text-blue-500">${url.hostname}</a>`;
+    } catch (_) {
+      return m;
+    }
+  });
+
+  const escala = {
+    id: escalaEditando ? escalaEditando.id : Date.now(),
+    data: document.getElementById("data").value,
+    bateria: document.getElementById("bateria").value,
+    baixo: document.getElementById("baixo").value,
+    teclado: document.getElementById("teclado").value,
+    violao: document.getElementById("violao").value,
+    guitarra: document.getElementById("guitarra").value,
+    percussao: document.getElementById("percussao").value,
+    vocal1: document.getElementById("vocal1").value,
+    vocal2: document.getElementById("vocal2").value,
+    vocal3: document.getElementById("vocal3").value,
+    vocal4: document.getElementById("vocal4").value,
+    vocal5: document.getElementById("vocal5").value,
+    musicas: musicas.join("<br>"),
+    cifras: document.getElementById("cifras").value
+  };
+
+  if (escalaEditando) {
+    escalas = escalas.map(e => e.id === escala.id ? escala : e);
+    escalaEditando = null;
+    escalaForm.querySelector("button[type='submit']").textContent = "Adicionar Escala";
+  } else {
+    escalas.push(escala);
+  }
+
+  salvarNoLocalStorage();
+  renderizarEscalas();
+  escalaForm.reset();
+  mostrarToast("Escala salva!");
+}
+
+// --- Renderização ---
+
+function renderizarEscalas() {
+  const list = document.getElementById("escalaList");
+  const termo = document.getElementById("filtroBusca")?.value.toLowerCase() || "";
+  const filtrado = escalas.filter(escala => {
+    return (
+      escala.data.includes(termo) ||
+      Object.values(escala).some(val =>
+        val.toString().toLowerCase().includes(termo)
+      )
+    );
+  });
+
+  list.innerHTML = "";
+  if (filtrado.length === 0) {
+    list.innerHTML = '<p class="text-gray-500 text-center">Nenhuma escala encontrada.</p>';
+    return;
+  }
+
+  filtrado.forEach(escala => {
+    const div = document.createElement("div");
+    div.className = "border border-gray-200 p-4 rounded-md bg-gray-50";
+    div.innerHTML = `
+      <p><strong>Data:</strong> ${escala.data}</p>
+      <p><strong>Bateria:</strong> ${escala.bateria}</p>
+      <p><strong>Baixo:</strong> ${escala.baixo}</p>
+      <p><strong>Teclado:</strong> ${escala.teclado}</p>
+      <p><strong>Violão:</strong> ${escala.violao}</p>
+      <p><strong>Guitarra:</strong> ${escala.guitarra}</p>
+      <p><strong>Percussão:</strong> ${escala.percussao}</p>
+      <p><strong>Vocais:</strong> ${
+        Object.keys(escala).filter(k => k.startsWith('vocal')).map(k => escala[k]).filter(v => v).join(', ') || 'Nenhum'
+      }</p>
+      <p><strong>Músicas:</strong><br>${escala.musicas}</p>
+      <p><strong>Cifras/Obs:</strong> ${escala.cifras || '-'}</p>
+      <div class="mt-2 flex gap-2">
+        <button onclick="editarEscala(${escala.id})" class="text-blue-600 hover:text-blue-800 font-medium">Editar</button>
+        <button onclick="deletarEscala(${escala.id})" class="text-red-600 hover:text-red-800 font-medium">Deletar</button>
+      </div>
+    `;
+    list.appendChild(div);
+  });
+}
+
+// --- Edição e exclusão ---
+
+window.editarEscala = function(id) {
+  const escala = escalas.find(e => e.id === id);
+  if (!escala) return;
+  escalaEditando = escala;
+  document.getElementById("data").value = escala.data;
+  document.getElementById("bateria").value = escala.bateria;
+  document.getElementById("baixo").value = escala.baixo;
+  document.getElementById("teclado").value = escala.teclado;
+  document.getElementById("violao").value = escala.violao;
+  document.getElementById("guitarra").value = escala.guitarra;
+  document.getElementById("percussao").value = escala.percussao;
+  document.getElementById("vocal1").value = escala.vocal1;
+  document.getElementById("vocal2").value = escala.vocal2;
+  document.getElementById("vocal3").value = escala.vocal3;
+  document.getElementById("vocal4").value = escala.vocal4;
+  document.getElementById("vocal5").value = escala.vocal5;
+  document.getElementById("musicas").value = escala.musicas.replace(/<br>/g, "\n");
+  document.getElementById("cifras").value = escala.cifras;
+  document.querySelector("form#escalaForm button[type='submit']").textContent = "Atualizar Escala";
+};
+
+window.deletarEscala = function(id) {
+  if (confirm("Tem certeza que deseja deletar esta escala?")) {
+    escalas = escalas.filter(e => e.id !== id);
+    salvarNoLocalStorage();
+    renderizarEscalas();
+    mostrarToast("Escala excluída!");
+  }
+};
+
+// --- Outras funcionalidades ---
+
+function limparEscalasHandler() {
+  if (confirm("Tem certeza que deseja limpar todas as escalas?")) {
+    escalas = [];
+    salvarNoLocalStorage();
+    renderizarEscalas();
+    mostrarToast("Todas as escalas foram apagadas.");
+  }
+}
+
+function handleTrocaSubmit(e) {
+  e.preventDefault();
+  alert("Solicitação enviada com sucesso!");
+  e.target.reset();
+  document.getElementById("formTroca").classList.add("hidden");
+}
+
+function logoutHandler() {
+  if (confirm("Tem certeza que deseja sair?")) {
+    localStorage.removeItem("usuario-logado");
+    location.reload();
+  }
+}
+
+function toggleDarkMode() {
+  document.body.classList.toggle("dark");
+  document.querySelectorAll("input, select, textarea, .bg-white").forEach(el => {
+    el.classList.toggle("bg-gray-900");
+    el.classList.toggle("text-white");
+    el.classList.toggle("border-gray-600");
+  });
+}
+
+function exportarParaPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  let y = 20;
+  doc.setFontSize(12);
+  doc.text("Escala de Louvor - Verbo da Vida Zona Norte", 10, 10);
+
+  if (!Array.isArray(escalas)) {
+    doc.text("Nenhuma escala disponível para exportação.", 10, y);
+    doc.save("escala.pdf");
+    return;
+  }
+
+  escalas.forEach((escala, index) => {
+    if (!escala || typeof escala !== "object") return;
+    if (index > 0) y += 10;
+
+    y += 10;
+    doc.text(`Data: ${escala.data || '-'}`, 10, y);
+    doc.text(`Bateria: ${escala.bateria || '-'}`, 10, y += 10);
+    doc.text(`Baixo: ${escala.baixo || '-'}`, 10, y += 10);
+    doc.text(`Teclado: ${escala.teclado || '-'}`, 10, y += 10);
+    doc.text(`Violão: ${escala.violao || '-'}`, 10, y += 10);
+    doc.text(`Guitarra: ${escala.guitarra || '-'}`, 10, y += 10);
+    doc.text(`Percussão: ${escala.percussao || '-'}`, 10, y += 10);
+
+    const vocais = Object.keys(escala)
+      .filter(k => k.startsWith('vocal'))
+      .map(k => escala[k])
+      .filter(v => v && v.trim())
+      .join(', ') || 'Nenhum';
+    doc.text(`Vocais: ${vocais}`, 10, y += 10);
+
+    const musicas = (escala.musicas || '')
+      .split('<br>')
+      .map(m => m.replace(/<[^>]+>/g, '').trim())
+      .filter(Boolean);
+
+    doc.text("Músicas:", 10, y += 10);
+    if (musicas.length === 0) {
+      doc.text("Nenhuma música cadastrada.", 15, y += 10);
+    } else {
+      musicas.forEach(musica => {
+        y += 10;
+        doc.text(musica, 15, y);
+      });
+    }
+
+    y += 10;
+  });
+
+  doc.save("escala.pdf");
+}
+
+// --- Verificação de login ---
+
+function verificarLogin() {
+  const logado = localStorage.getItem("usuario-logado");
+  if (logado) {
+    mostrarApp();
+  } else {
+    const form = document.getElementById("loginForm");
+    if (form) form.addEventListener("submit", handleLogin);
+  }
+}
+
+verificarLogin();
+
+</script>
+
+</body>
+</html>
