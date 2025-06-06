@@ -5,12 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Escala de Louvor - Verbo da Vida Zona Norte</title>
   <!-- Tailwind CSS compilado via CLI -->
-  <link href="./src/output.css" rel="stylesheet">
-  
+  <link href="./dist/output.css" rel="stylesheet">
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
-      
     }
     .show-toast {
       transform: translateY(0);
@@ -24,6 +22,10 @@
 <div id="loginScreen" class="max-w-md mx-auto bg-white shadow-md rounded-lg p-6 space-y-6">
   <h1 class="text-2xl font-bold text-center text-indigo-700">Login</h1>
   <form id="loginForm" class="space-y-4">
+    <select id="tipoUsuario" class="mt-2 p-2 border rounded w-full">
+      <option value="admin">Administrador</option>
+      <option value="musico">Músico</option>
+    </select>
     <div>
       <label class="block text-sm font-medium text-gray-700">Usuário</label>
       <input type="text" id="username" required class="mt-1 block w-full border border-gray-300 rounded-md p-2" />
@@ -53,7 +55,7 @@
 <template id="mainAppTemplate">
   <div class="max-w-4xl mx-auto bg-white shadow-md rounded-lg p-6 space-y-6 dark:bg-gray-800 dark:text-white transition-colors duration-300">
     <div class="flex justify-between items-center">
-      <h1 class="text-2xl font-bold text-indigo-800 dark:text-indigo-500"> Louvor Verbo Zona Norte</h1>
+      <h1 class="text-2xl font-bold text-indigo-800 dark:text-indigo-500">Louvor Verbo Zona Norte</h1>
       <button id="logoutBtn" class="text-sm text-red-600 hover:text-red-800 underline dark:text-red-400">Sair</button>
     </div>
     <button id="exportarPDF" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md transition">
@@ -154,7 +156,7 @@
             <option value="Natália">Natália</option>
           </select>
           <select id="vocal3" class="border border-gray-300 rounded-md p-1 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-           <option value="">Selecione</option>
+            <option value="">Selecione</option>
             <option value="Mariza">Mariza</option>
             <option value="Rebeca">Rebeca</option>
             <option value="Leila">Leila</option>
@@ -218,15 +220,15 @@
     <!-- Botões Extras -->
     <div class="flex flex-col sm:flex-row gap-2">
       <button id="abrirTrocaBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md transition">
-        Solicitar Troca de Escala
+        Solicitar Troca
       </button>
       <button id="limparEscalas" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-md transition">
         Limpar Escalas
       </button>
     </div>
     <!-- Formulário de Troca -->
-    <div id="formTroca" class="hidden mt-4 border-t pt-4 space-y-2">
-      <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-200">Solicitação de Troca</h2>
+    <div id="formTroca" class="hidden mt-4 pt-4 border-t">
+      <h2 class="text-lg font-semibold">Solicitação de Troca</h2>
       <form id="trocaForm" class="space-y-2">
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Data da Escala</label>
@@ -258,33 +260,37 @@
   </div>
 </template>
 
+<!-- Template da tela do músico -->
+<template id="telaMusicoTemplate">
+  <div class="p-6 max-w-2xl mx-auto bg-white shadow-md rounded-lg space-y-6">
+    <h2 class="text-2xl font-bold text-center text-indigo-700">Minhas Escalas</h2>
+    <p class="text-center text-lg font-medium">Bem-vindo(a), <span id="nomeUsuario" class="font-semibold text-indigo-600"></span></p>
+    <div id="listaEscalasMusico" class="space-y-4"></div>
+    <div class="flex justify-center">
+      <button onclick="logoutHandler()" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-6 rounded-full transition">
+        Sair
+      </button>
+    </div>
+  </div>
+</template>
+
 <!-- Biblioteca jsPDF -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script> 
 
 <!-- Script Principal -->
 <script>
- // script.js
-
-// Inicialização segura dos usuários
-let usuarios = JSON.parse(localStorage.getItem("usuarios"));
-if (!usuarios) {
-  usuarios = [
-    { username: "admin", password: "1234" },
-    { username: "lucas", password: "senha123" }
-  ];
-  localStorage.setItem("usuarios", JSON.stringify(usuarios));
-}
-
+// script.js
+let usuarios = JSON.parse(localStorage.getItem("usuarios")) || [
+  { username: "admin", password: "1234" },
+  { username: "lucas", password: "senha123" }
+];
 let escalas = [];
 let escalaEditando = null;
-
-// --- Funções iniciais ---
 
 function carregarDoLocalStorage() {
   const dados = localStorage.getItem('escalas-louvor');
   if (dados) {
     escalas = JSON.parse(dados);
-    renderizarEscalas();
   }
 }
 
@@ -300,16 +306,16 @@ function mostrarToast(mensagem) {
   setTimeout(() => toast.classList.remove("show-toast"), 3000);
 }
 
-// --- Login e Registro ---
-
 function handleLogin(e) {
   e.preventDefault();
   const user = document.getElementById("username").value.trim();
   const pass = document.getElementById("password").value.trim();
+  const tipo = document.getElementById("tipoUsuario").value;
   const usuario = usuarios.find(u => u.username === user && u.password === pass);
   if (usuario) {
     localStorage.setItem("usuario-logado", usuario.username);
-    mostrarApp();
+    localStorage.setItem("tipo-usuario", tipo);
+    tipo === "admin" ? mostrarApp() : mostrarTelaMusico();
   } else {
     alert("Usuário ou senha inválidos.");
   }
@@ -322,44 +328,35 @@ function registrarUsuario() {
     alert("Preencha todos os campos.");
     return;
   }
-
   if (usuarios.some(u => u.username === user)) {
     alert("Usuário já existe.");
     return;
   }
-
   usuarios.push({ username: user, password: pass });
   localStorage.setItem("usuarios", JSON.stringify(usuarios));
   alert("Usuário registrado com sucesso!");
 }
-
-// --- Exibição do App ---
 
 function mostrarApp() {
   const login = document.getElementById("loginScreen");
   const main = document.getElementById("mainApp");
   const template = document.getElementById("mainAppTemplate");
   if (!login || !main || !template) return;
-
   login.style.display = "none";
-  const clone = template.content.cloneNode(true);
   main.innerHTML = "";
-  main.appendChild(clone);
+  main.appendChild(document.getElementById("mainAppTemplate").content.cloneNode(true));
   main.classList.remove("hidden");
-
   initializeAppElements();
   carregarDoLocalStorage();
+  renderizarEscalas();
 }
 
 function initializeAppElements() {
   const escalaForm = document.getElementById("escalaForm");
-  const escalaList = document.getElementById("escalaList");
   const filtroBusca = document.getElementById("filtroBusca");
   const limparEscalas = document.getElementById("limparEscalas");
   const abrirTrocaBtn = document.getElementById("abrirTrocaBtn");
   const formTroca = document.getElementById("formTroca");
-
-  if (!escalaForm || !escalaList || !filtroBusca || !limparEscalas || !abrirTrocaBtn || !formTroca) return;
 
   escalaForm.addEventListener("submit", handleSubmit);
   filtroBusca.addEventListener("input", renderizarEscalas);
@@ -370,8 +367,6 @@ function initializeAppElements() {
   document.getElementById("toggleDarkMode")?.addEventListener("click", toggleDarkMode);
   document.getElementById("exportarPDF")?.addEventListener("click", exportarParaPDF);
 }
-
-// --- Formulário Escala ---
 
 function handleSubmit(e) {
   e.preventDefault();
@@ -425,8 +420,6 @@ function handleSubmit(e) {
   mostrarToast("Escala salva!");
 }
 
-// --- Renderização ---
-
 function renderizarEscalas() {
   const list = document.getElementById("escalaList");
   const termo = document.getElementById("filtroBusca")?.value.toLowerCase() || "";
@@ -440,12 +433,17 @@ function renderizarEscalas() {
   });
 
   list.innerHTML = "";
+
   if (filtrado.length === 0) {
     list.innerHTML = '<p class="text-gray-500 text-center">Nenhuma escala encontrada.</p>';
     return;
   }
 
   filtrado.forEach(escala => {
+    const confirmacoes = JSON.parse(localStorage.getItem("confirmacoes") || "{}");
+    const conf = confirmacoes[escala.id] || {};
+    const resumoConfirmacoes = Object.entries(conf).map(([f, d]) => `${f}: ${d.status}`).join(", ") || "Nenhuma confirmação";
+
     const div = document.createElement("div");
     div.className = "border border-gray-200 p-4 rounded-md bg-gray-50";
     div.innerHTML = `
@@ -456,9 +454,7 @@ function renderizarEscalas() {
       <p><strong>Violão:</strong> ${escala.violao}</p>
       <p><strong>Guitarra:</strong> ${escala.guitarra}</p>
       <p><strong>Percussão:</strong> ${escala.percussao}</p>
-      <p><strong>Vocais:</strong> ${
-        Object.keys(escala).filter(k => k.startsWith('vocal')).map(k => escala[k]).filter(v => v).join(', ') || 'Nenhum'
-      }</p>
+      <p><strong>Vocais:</strong> ${Object.keys(escala).filter(k => k.startsWith('vocal')).map(k => escala[k]).filter(v => v).join(', ') || 'Nenhum'}</p>
       <p><strong>Músicas:</strong><br>${escala.musicas}</p>
       <p><strong>Cifras/Obs:</strong> ${escala.cifras || '-'}</p>
       <div class="mt-2 flex gap-2">
@@ -469,8 +465,6 @@ function renderizarEscalas() {
     list.appendChild(div);
   });
 }
-
-// --- Edição e exclusão ---
 
 window.editarEscala = function(id) {
   const escala = escalas.find(e => e.id === id);
@@ -501,8 +495,6 @@ window.deletarEscala = function(id) {
     mostrarToast("Escala excluída!");
   }
 };
-
-// --- Outras funcionalidades ---
 
 function limparEscalasHandler() {
   if (confirm("Tem certeza que deseja limpar todas as escalas?")) {
@@ -544,67 +536,149 @@ function exportarParaPDF() {
   doc.text("Escala de Louvor - Verbo da Vida Zona Norte", 10, 10);
 
   if (!Array.isArray(escalas)) {
-    doc.text("Nenhuma escala disponível para exportação.", 10, y);
+    doc.text("Nenhuma escala disponível.", 10, y);
     doc.save("escala.pdf");
     return;
   }
 
   escalas.forEach((escala, index) => {
-    if (!escala || typeof escala !== "object") return;
     if (index > 0) y += 10;
-
     y += 10;
-    doc.text(`Data: ${escala.data || '-'}`, 10, y);
-    doc.text(`Bateria: ${escala.bateria || '-'}`, 10, y += 10);
-    doc.text(`Baixo: ${escala.baixo || '-'}`, 10, y += 10);
-    doc.text(`Teclado: ${escala.teclado || '-'}`, 10, y += 10);
-    doc.text(`Violão: ${escala.violao || '-'}`, 10, y += 10);
-    doc.text(`Guitarra: ${escala.guitarra || '-'}`, 10, y += 10);
-    doc.text(`Percussão: ${escala.percussao || '-'}`, 10, y += 10);
-
+    doc.text(`Data: ${escala.data}`, 10, y);
+    doc.text(`Bateria: ${escala.bateria}`, 10, y += 10);
+    doc.text(`Baixo: ${escala.baixo}`, 10, y += 10);
+    doc.text(`Teclado: ${escala.teclado}`, 10, y += 10);
+    doc.text(`Violão: ${escala.violao}`, 10, y += 10);
+    doc.text(`Guitarra: ${escala.guitarra}`, 10, y += 10);
+    doc.text(`Percussão: ${escala.percussao}`, 10, y += 10);
     const vocais = Object.keys(escala)
       .filter(k => k.startsWith('vocal'))
       .map(k => escala[k])
-      .filter(v => v && v.trim())
+      .filter(v => v)
       .join(', ') || 'Nenhum';
     doc.text(`Vocais: ${vocais}`, 10, y += 10);
-
-    const musicas = (escala.musicas || '')
-      .split('<br>')
-      .map(m => m.replace(/<[^>]+>/g, '').trim())
-      .filter(Boolean);
-
-    doc.text("Músicas:", 10, y += 10);
-    if (musicas.length === 0) {
-      doc.text("Nenhuma música cadastrada.", 15, y += 10);
-    } else {
-      musicas.forEach(musica => {
-        y += 10;
-        doc.text(musica, 15, y);
-      });
-    }
-
     y += 10;
   });
-
   doc.save("escala.pdf");
 }
-
-// --- Verificação de login ---
 
 function verificarLogin() {
   const logado = localStorage.getItem("usuario-logado");
   if (logado) {
-    mostrarApp();
+    const tipo = localStorage.getItem("tipo-usuario");
+    tipo === "admin" ? mostrarApp() : mostrarTelaMusico();
   } else {
     const form = document.getElementById("loginForm");
     if (form) form.addEventListener("submit", handleLogin);
   }
 }
 
+function mostrarTelaMusico() {
+  const main = document.getElementById("mainApp");
+  const template = document.getElementById("telaMusicoTemplate");
+  if (!main || !template) return;
+
+  document.getElementById("loginScreen").style.display = "none";
+  main.innerHTML = "";
+  main.appendChild(template.content.cloneNode(true));
+  main.classList.remove("hidden");
+
+  carregarDoLocalStorage(); // Garantir que as escalas estejam carregadas
+  renderizarEscalasParaMusico();
+}
+
+function renderizarEscalasParaMusico() {
+  const user = localStorage.getItem("usuario-logado");
+  const container = document.getElementById("listaEscalasMusico");
+  const confirmacoes = JSON.parse(localStorage.getItem("confirmacoes") || "{}");
+
+  const escalasUsuario = escalas.filter(e =>
+    Object.values(e).some(v => typeof v === 'string' && v.trim().toLowerCase() === user.trim().toLowerCase())
+  );
+
+  const saudacao = document.getElementById("nomeUsuario");
+  if (saudacao) saudacao.textContent = user;
+
+  container.innerHTML = "";
+
+  if (escalasUsuario.length === 0) {
+    container.innerHTML = "<p class='text-gray-500 text-center'>Você não está escalado.</p>";
+    return;
+  }
+
+  escalasUsuario.forEach(escala => {
+    const funcoes = ["bateria", "baixo", "teclado", "violao", "guitarra", "percussao", "vocal1", "vocal2", "vocal3", "vocal4", "vocal5"];
+    const minhaFuncao = funcoes.find(f => escala[f]?.trim().toLowerCase() === user.trim().toLowerCase());
+
+    const status = confirmacoes?.[escala.id]?.[minhaFuncao]?.status || "pendente";
+    let statusTexto, statusCor;
+
+    switch(status) {
+      case "confirmado":
+        statusTexto = "✅ Confirmado";
+        statusCor = "bg-green-100 text-green-700 dark:bg-green-800 dark:text-green-200";
+        break;
+      case "troca":
+        statusTexto = "⚠️ Solicitou Troca";
+        statusCor = "bg-yellow-100 text-yellow-700 dark:bg-yellow-800 dark:text-yellow-200";
+        break;
+      default:
+        statusTexto = "⏳ Pendente";
+        statusCor = "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200";
+    }
+
+    const div = document.createElement("div");
+    div.className = "p-4 bg-white border rounded shadow mb-4 dark:bg-gray-700 dark:border-gray-600 dark:text-white";
+    div.innerHTML = `
+      <div class="flex justify-between items-center mb-2">
+        <span class="font-semibold text-gray-800 dark:text-gray-200">${minhaFuncao}</span>
+        <span class="px-3 py-1 text-xs font-medium rounded-full ${statusCor}">${statusTexto}</span>
+      </div>
+      <p><strong>Data:</strong> ${escala.data}</p>
+      <div class="mt-3 flex gap-2">
+        <button onclick="confirmarPresenca(${escala.id}, '${minhaFuncao}')" class="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition text-sm">Confirmar</button>
+        <button onclick="solicitarTroca(${escala.id}, '${minhaFuncao}')" class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded transition text-sm">Solicitar Troca</button>
+      </div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function confirmarPresenca(id, funcao) {
+  const user = localStorage.getItem("usuario-logado");
+  const confirmacoes = JSON.parse(localStorage.getItem("confirmacoes") || "{}");
+  if (!confirmacoes[id]) confirmacoes[id] = {};
+  confirmacoes[id][funcao] = {
+    status: "confirmado",
+    por: user,
+    data: new Date().toISOString()
+  };
+  localStorage.setItem("confirmacoes", JSON.stringify(confirmacoes));
+  mostrarToast("Presença confirmada!");
+  renderizarEscalasParaMusico();
+}
+
+function solicitarTroca(id, funcao) {
+  const motivo = prompt("Qual o motivo da troca?");
+  if (!motivo) return;
+  const user = localStorage.getItem("usuario-logado");
+  const confirmacoes = JSON.parse(localStorage.getItem("confirmacoes") || "{}");
+  if (!confirmacoes[id]) confirmacoes[id] = {};
+  confirmacoes[id][funcao] = {
+    status: "troca",
+    por: user,
+    motivo,
+    data: new Date().toISOString()
+  };
+  localStorage.setItem("confirmacoes", JSON.stringify(confirmacoes));
+  mostrarToast("Solicitação de troca enviada.");
+  renderizarEscalasParaMusico();
+}
+
 verificarLogin();
-
+document.addEventListener("DOMContentLoaded", () => {
+  carregarDoLocalStorage();
+});
 </script>
-
 </body>
 </html>
