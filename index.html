@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Escala de Louvor - Verbo da Vida Zona Norte</title>
-  <!-- Tailwind CSS compilado via CLI -->
+  <!-- Tailwind CSS compilado -->
   <link href="./dist/output.css" rel="stylesheet">
   <style>
     body {
@@ -18,6 +18,7 @@
   </style>
 </head>
 <body class="bg-gray-100 min-h-screen py-6 px-4 transition-colors duration-300">
+
 <!-- TELA DE LOGIN -->
 <div id="loginScreen" class="max-w-md mx-auto bg-white shadow-md rounded-lg p-6 space-y-6">
   <h1 class="text-2xl font-bold text-center text-indigo-700">Login</h1>
@@ -58,6 +59,8 @@
       <h1 class="text-2xl font-bold text-indigo-800 dark:text-indigo-500">Louvor Verbo Zona Norte</h1>
       <button id="logoutBtn" class="text-sm text-red-600 hover:text-red-800 underline dark:text-red-400">Sair</button>
     </div>
+    <!-- MENSAGENS PENDENTES -->
+    <div id="mensagensPendentes" class="space-y-4"></div>
     <button id="exportarPDF" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md transition">
       Exportar como PDF
     </button>
@@ -201,11 +204,11 @@
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Músicas (uma por linha)</label>
-        <textarea id="musicas" placeholder="Cole links ou nomes das músicas..." rows="3" class="mt-1 block w-full border border-gray-300 rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"></textarea>
+        <textarea id="musicas" rows="3" class="mt-1 block w-full border border-gray-300 rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"></textarea>
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Notas Gerais</label>
-        <textarea id="cifras" placeholder="Cifras ou observações..." rows="3" class="mt-1 block w-full border border-gray-300 rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"></textarea>
+        <textarea id="cifras" rows="3" class="mt-1 block w-full border border-gray-300 rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"></textarea>
       </div>
       <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-md transition">
         Adicionar Escala
@@ -261,6 +264,7 @@
 </template>
 
 <!-- Template da tela do músico -->
+<!-- Template da tela do músico -->
 <template id="telaMusicoTemplate">
   <div class="p-6 max-w-2xl mx-auto bg-white shadow-md rounded-lg space-y-6">
     <h2 class="text-2xl font-bold text-center text-indigo-700">Minhas Escalas</h2>
@@ -274,12 +278,12 @@
   </div>
 </template>
 
+
 <!-- Biblioteca jsPDF -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script> 
 
 <!-- Script Principal -->
 <script>
-// script.js
 let usuarios = JSON.parse(localStorage.getItem("usuarios")) || [
   { username: "admin", password: "1234" },
   { username: "lucas", password: "senha123" }
@@ -344,11 +348,12 @@ function mostrarApp() {
   if (!login || !main || !template) return;
   login.style.display = "none";
   main.innerHTML = "";
-  main.appendChild(document.getElementById("mainAppTemplate").content.cloneNode(true));
+  main.appendChild(template.content.cloneNode(true));
   main.classList.remove("hidden");
   initializeAppElements();
   carregarDoLocalStorage();
   renderizarEscalas();
+  renderizarMensagensPendentes(); // Mostra mensagens pendentes
 }
 
 function initializeAppElements() {
@@ -382,7 +387,7 @@ function handleSubmit(e) {
   const musicas = musicasRaw.map(m => {
     try {
       const url = new URL(m);
-      return `<a href="${url}" target="_blank" class="text-blue-500">${url.hostname}</a>`;
+      return `<a href="${url}" target="_blank">${url.hostname}</a>`;
     } catch (_) {
       return m;
     }
@@ -559,6 +564,7 @@ function exportarParaPDF() {
     doc.text(`Vocais: ${vocais}`, 10, y += 10);
     y += 10;
   });
+
   doc.save("escala.pdf");
 }
 
@@ -577,13 +583,10 @@ function mostrarTelaMusico() {
   const main = document.getElementById("mainApp");
   const template = document.getElementById("telaMusicoTemplate");
   if (!main || !template) return;
-
   document.getElementById("loginScreen").style.display = "none";
   main.innerHTML = "";
   main.appendChild(template.content.cloneNode(true));
   main.classList.remove("hidden");
-
-  carregarDoLocalStorage(); // Garantir que as escalas estejam carregadas
   renderizarEscalasParaMusico();
 }
 
@@ -592,10 +595,12 @@ function renderizarEscalasParaMusico() {
   const container = document.getElementById("listaEscalasMusico");
   const confirmacoes = JSON.parse(localStorage.getItem("confirmacoes") || "{}");
 
+  // Filtra as escalas em que o músico está escalado
   const escalasUsuario = escalas.filter(e =>
     Object.values(e).some(v => typeof v === 'string' && v.trim().toLowerCase() === user.trim().toLowerCase())
   );
 
+  // Mostrar nome do usuário
   const saudacao = document.getElementById("nomeUsuario");
   if (saudacao) saudacao.textContent = user;
 
@@ -607,41 +612,86 @@ function renderizarEscalasParaMusico() {
   }
 
   escalasUsuario.forEach(escala => {
-    const funcoes = ["bateria", "baixo", "teclado", "violao", "guitarra", "percussao", "vocal1", "vocal2", "vocal3", "vocal4", "vocal5"];
-    const minhaFuncao = funcoes.find(f => escala[f]?.trim().toLowerCase() === user.trim().toLowerCase());
-
-    const status = confirmacoes?.[escala.id]?.[minhaFuncao]?.status || "pendente";
-    let statusTexto, statusCor;
-
-    switch(status) {
-      case "confirmado":
-        statusTexto = "✅ Confirmado";
-        statusCor = "bg-green-100 text-green-700 dark:bg-green-800 dark:text-green-200";
-        break;
-      case "troca":
-        statusTexto = "⚠️ Solicitou Troca";
-        statusCor = "bg-yellow-100 text-yellow-700 dark:bg-yellow-800 dark:text-yellow-200";
-        break;
-      default:
-        statusTexto = "⏳ Pendente";
-        statusCor = "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200";
-    }
-
     const div = document.createElement("div");
     div.className = "p-4 bg-white border rounded shadow mb-4 dark:bg-gray-700 dark:border-gray-600 dark:text-white";
-    div.innerHTML = `
-      <div class="flex justify-between items-center mb-2">
-        <span class="font-semibold text-gray-800 dark:text-gray-200">${minhaFuncao}</span>
-        <span class="px-3 py-1 text-xs font-medium rounded-full ${statusCor}">${statusTexto}</span>
-      </div>
+
+    // Monta a lista de músicos por função
+    const musicosPorFuncao = [
+      { funcao: "bateria", label: "Bateria" },
+      { funcao: "baixo", label: "Baixo" },
+      { funcao: "teclado", label: "Teclado" },
+      { funcao: "violao", label: "Violão" },
+      { funcao: "guitarra", label: "Guitarra" },
+      { funcao: "percussao", label: "Percussão" },
+      { funcao: "vocal1", label: "Vocal 1" },
+      { funcao: "vocal2", label: "Vocal 2" },
+      { funcao: "vocal3", label: "Vocal 3" },
+      { funcao: "vocal4", label: "Vocal 4" },
+      { funcao: "vocal5", label: "Vocal 5" }
+    ];
+
+    let htmlContent = `
       <p><strong>Data:</strong> ${escala.data}</p>
+      <ul class="list-disc pl-4">
+    `;
+
+    musicosPorFuncao.forEach(funcao => {
+      const nomeMusico = escala[funcao.funcao];
+      const status = confirmacoes?.[escala.id]?.[funcao.funcao]?.status || "pendente";
+      let statusTexto, statusCor;
+
+      switch (status) {
+        case "confirmado":
+          statusTexto = "✅ Confirmado";
+          statusCor = "bg-green-100 text-green-700 dark:bg-green-800 dark:text-green-200";
+          break;
+        case "troca":
+          statusTexto = "⚠️ Solicitou Troca";
+          statusCor = "bg-yellow-100 text-yellow-700 dark:bg-yellow-800 dark:text-yellow-200";
+          break;
+        default:
+          statusTexto = "⏳ Pendente";
+          statusCor = "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200";
+      }
+
+      htmlContent += `
+        <li>
+          <strong>${funcao.label}:</strong> ${nomeMusico}
+          <span class="px-3 py-1 text-xs font-medium rounded-full ${statusCor}">${statusTexto}</span>
+        </li>
+      `;
+    });
+
+    htmlContent += `
+      </ul>
+      <p><strong>Músicas:</strong></p>
+      <ul class="list-disc pl-4">
+        ${escala.musicas.split("<br>").map(musica => `<li>${musica}</li>`).join("")}
+      </ul>
       <div class="mt-3 flex gap-2">
-        <button onclick="confirmarPresenca(${escala.id}, '${minhaFuncao}')" class="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition text-sm">Confirmar</button>
-        <button onclick="solicitarTroca(${escala.id}, '${minhaFuncao}')" class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded transition text-sm">Solicitar Troca</button>
+        <!-- Botões de interação apenas para a função do músico logado -->
+        ${musicosPorFuncao.map(funcao => {
+          const minhaFuncao = funcao.funcao;
+          if (escala[minhaFuncao]?.trim().toLowerCase() === user.trim().toLowerCase()) {
+            return `
+              <button onclick="confirmarPresenca(${escala.id}, '${minhaFuncao}')" class="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition text-sm">Confirmar</button>
+              <button onclick="solicitarTroca(${escala.id}, '${minhaFuncao}')" class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded transition text-sm">Solicitar Troca</button>
+            `;
+          }
+          return "";
+        }).join("")}
       </div>
     `;
+
+    div.innerHTML = htmlContent;
     container.appendChild(div);
   });
+}
+
+function adicionarMensagemPendente(mensagem) {
+  const mensagens = JSON.parse(localStorage.getItem("mensagensPendentes") || "[]");
+  mensagens.push(mensagem);
+  localStorage.setItem("mensagensPendentes", JSON.stringify(mensagens));
 }
 
 function confirmarPresenca(id, funcao) {
@@ -654,6 +704,16 @@ function confirmarPresenca(id, funcao) {
     data: new Date().toISOString()
   };
   localStorage.setItem("confirmacoes", JSON.stringify(confirmacoes));
+
+  adicionarMensagemPendente({
+    id: Date.now(),
+    tipo: "presenca",
+    escalaId: id,
+    funcao: funcao,
+    usuario: user,
+    data: new Date().toISOString()
+  });
+
   mostrarToast("Presença confirmada!");
   renderizarEscalasParaMusico();
 }
@@ -667,18 +727,74 @@ function solicitarTroca(id, funcao) {
   confirmacoes[id][funcao] = {
     status: "troca",
     por: user,
-    motivo,
+    motivo: motivo,
     data: new Date().toISOString()
   };
   localStorage.setItem("confirmacoes", JSON.stringify(confirmacoes));
+
+  adicionarMensagemPendente({
+    id: Date.now(),
+    tipo: "troca",
+    escalaId: id,
+    funcao: funcao,
+    usuario: user,
+    motivo: motivo,
+    data: new Date().toISOString()
+  });
+
   mostrarToast("Solicitação de troca enviada.");
   renderizarEscalasParaMusico();
 }
+function marcarComoLida(id) {
+  let mensagens = JSON.parse(localStorage.getItem("mensagensPendentes") || "[]");
+  mensagens = mensagens.filter(msg => msg.id !== id); // Remove a mensagem com o ID fornecido
+  localStorage.setItem("mensagensPendentes", JSON.stringify(mensagens)); // Salva as mudanças no localStorage
+  renderizarMensagensPendentes(); // Re-renderiza as mensagens na tela
+  mostrarToast("Mensagem marcada como lida.");
+}
+
+function adicionarMensagemPendente(mensagem) {
+  const mensagens = JSON.parse(localStorage.getItem("mensagensPendentes") || "[]");
+  mensagem.id = Date.now(); // Garante que cada mensagem tenha um ID único
+  mensagens.push(mensagem);
+  localStorage.setItem("mensagensPendentes", JSON.stringify(mensagens));
+}
+
+function renderizarMensagensPendentes() {
+  const container = document.getElementById("mensagensPendentes");
+  const mensagens = JSON.parse(localStorage.getItem("mensagensPendentes") || "[]");
+  container.innerHTML = ""; // Limpa o conteúdo anterior
+
+  if (mensagens.length === 0) {
+    container.innerHTML = "<p class='text-gray-500 text-center'>Nenhuma mensagem pendente.</p>";
+    return;
+  }
+
+  mensagens.forEach(msg => {
+    const div = document.createElement("div");
+    div.className = "p-4 bg-white border rounded shadow mb-4 dark:bg-gray-700 dark:border-gray-600 dark:text-white";
+    div.innerHTML = `
+      <p><strong>Tipo:</strong> ${msg.tipo === "presenca" ? "Confirmação de Presença" : "Solicitação de Troca"}</p>
+      <p><strong>Data:</strong> ${new Date(msg.data).toLocaleString()}</p>
+      <p><strong>Músico:</strong> ${msg.usuario}</p>
+      <p><strong>Escala ID:</strong> ${msg.escalaId}</p>
+      <p><strong>Função:</strong> ${msg.funcao}</p>
+      ${msg.tipo === "troca" ? `<p><strong>Motivo:</strong> ${msg.motivo}</p>` : ""}
+      <button onclick="marcarComoLida(${msg.id})" class="mt-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition text-sm">Marcar como Lida</button>
+    `;
+    container.appendChild(div);
+  });
+}
+function marcarComoLida(id) {
+  let mensagens = JSON.parse(localStorage.getItem("mensagensPendentes") || "[]");
+  mensagens = mensagens.filter(msg => msg.id !== id); // Remove a mensagem com esse ID
+  localStorage.setItem("mensagensPendentes", JSON.stringify(mensagens));
+  renderizarMensagensPendentes(); // Atualiza a tela
+  mostrarToast("Mensagem marcada como lida.");
+}
 
 verificarLogin();
-document.addEventListener("DOMContentLoaded", () => {
-  carregarDoLocalStorage();
-});
+document.addEventListener("DOMContentLoaded", carregarDoLocalStorage);
 </script>
 </body>
 </html>
