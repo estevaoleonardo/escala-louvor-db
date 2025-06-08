@@ -15,6 +15,20 @@
       opacity: 1;
       pointer-events: auto;
     }
+    .w-6.h-6 {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.border-gray-300 {
+  border: 1px solid #d1d5db;
+}
+.w-6.h-6 {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  border: 1px solid #d1d5db;
+}
   </style>
 </head>
 <body class="bg-gray-100 min-h-screen py-6 px-4 transition-colors duration-300">
@@ -210,6 +224,15 @@
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Notas Gerais</label>
         <textarea id="cifras" rows="3" class="mt-1 block w-full border border-gray-300 rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"></textarea>
       </div>
+      <div>
+  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Paleta de Cores (máx. 3)</label>
+  <div class="flex gap-2 mt-1">
+    <input type="color" class="corPicker" data-index="0" />
+    <input type="color" class="corPicker" data-index="1" />
+    <input type="color" class="corPicker" data-index="2" />
+    <input type="hidden" id="paletaCores" />
+  </div>
+</div>
       <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-md transition">
         Adicionar Escala
       </button>
@@ -288,6 +311,7 @@ let usuarios = JSON.parse(localStorage.getItem("usuarios")) || [
   { username: "admin", password: "1234" },
   { username: "lucas", password: "senha123" }
 ];
+
 let escalas = [];
 let escalaEditando = null;
 
@@ -355,7 +379,30 @@ function mostrarApp() {
   renderizarEscalas();
   renderizarMensagensPendentes(); // Mostra mensagens pendentes
 }
+function sincronizarPaletaCores() {
+  const pickers = document.querySelectorAll(".corPicker");
+  const hiddenInput = document.getElementById("paletaCores");
 
+  pickers.forEach(picker => {
+    picker.addEventListener("change", () => {
+      const cores = Array.from(pickers).map(p => p.value);
+      hiddenInput.value = JSON.stringify(cores.filter(cor => cor)); // Remove vazios
+      mostrarToast("Paleta salva.");
+    });
+  });
+
+  // Carrega as cores ao editar
+  if (hiddenInput.value) {
+    try {
+      const cores = JSON.parse(hiddenInput.value);
+      pickers.forEach((picker, i) => {
+        picker.value = cores[i] || "#ffffff";
+      });
+    } catch (e) {
+      console.error("Erro ao carregar paleta:", e);
+    }
+  }
+}
 function initializeAppElements() {
   const escalaForm = document.getElementById("escalaForm");
   const filtroBusca = document.getElementById("filtroBusca");
@@ -371,6 +418,9 @@ function initializeAppElements() {
   document.getElementById("logoutBtn")?.addEventListener("click", logoutHandler);
   document.getElementById("toggleDarkMode")?.addEventListener("click", toggleDarkMode);
   document.getElementById("exportarPDF")?.addEventListener("click", exportarParaPDF);
+
+  // Nova linha:
+  sincronizarPaletaCores();
 }
 
 function handleSubmit(e) {
@@ -383,6 +433,7 @@ function handleSubmit(e) {
     }
   }
 
+  const paletaCores = document.getElementById("paletaCores").value; // ✅ Certifique-se que está aqui
   const musicasRaw = document.getElementById("musicas").value.split("\n").map(m => m.trim()).filter(Boolean);
   const musicas = musicasRaw.map(m => {
     try {
@@ -408,7 +459,8 @@ function handleSubmit(e) {
     vocal4: document.getElementById("vocal4").value,
     vocal5: document.getElementById("vocal5").value,
     musicas: musicas.join("<br>"),
-    cifras: document.getElementById("cifras").value
+    cifras: document.getElementById("cifras").value,
+    paletaCores: paletaCores || "[]" // ✅ Agora vai funcionar!
   };
 
   if (escalaEditando) {
@@ -461,7 +513,20 @@ function renderizarEscalas() {
       <p><strong>Percussão:</strong> ${escala.percussao}</p>
       <p><strong>Vocais:</strong> ${Object.keys(escala).filter(k => k.startsWith('vocal')).map(k => escala[k]).filter(v => v).join(', ') || 'Nenhum'}</p>
       <p><strong>Músicas:</strong><br>${escala.musicas}</p>
+
+      <!-- PALETA DE CORES -->
+      <p><strong>Paleta de Cores:</strong></p>
+      <div class="flex gap-2 mb-2">
+        ${escala.paletaCores && JSON.parse(escala.paletaCores).length > 0 
+          ? JSON.parse(escala.paletaCores).map(cor => `
+              <div class="w-6 h-6 rounded-full border border-gray-300" style="background-color:${cor}"></div>
+            `).join("") 
+          : "<span class='text-gray-500'>Nenhuma cor definida</span>"
+        }
+      </div>
+
       <p><strong>Cifras/Obs:</strong> ${escala.cifras || '-'}</p>
+
       <div class="mt-2 flex gap-2">
         <button onclick="editarEscala(${escala.id})" class="text-blue-600 hover:text-blue-800 font-medium">Editar</button>
         <button onclick="deletarEscala(${escala.id})" class="text-red-600 hover:text-red-800 font-medium">Deletar</button>
@@ -470,11 +535,12 @@ function renderizarEscalas() {
     list.appendChild(div);
   });
 }
-
 window.editarEscala = function(id) {
   const escala = escalas.find(e => e.id === id);
   if (!escala) return;
   escalaEditando = escala;
+
+  // Preencher campos normais
   document.getElementById("data").value = escala.data;
   document.getElementById("bateria").value = escala.bateria;
   document.getElementById("baixo").value = escala.baixo;
@@ -489,6 +555,15 @@ window.editarEscala = function(id) {
   document.getElementById("vocal5").value = escala.vocal5;
   document.getElementById("musicas").value = escala.musicas.replace(/<br>/g, "\n");
   document.getElementById("cifras").value = escala.cifras;
+
+  // Atualizar paleta de cores
+  const coresArray = JSON.parse(escala.paletaCores || "[]");
+  document.querySelectorAll(".corPicker").forEach((el, index) => {
+    el.value = coresArray[index] || "#ffffff";
+  });
+  document.getElementById("paletaCores").value = JSON.stringify(coresArray);
+
+  // Altera texto do botão
   document.querySelector("form#escalaForm button[type='submit']").textContent = "Atualizar Escala";
 };
 
@@ -634,7 +709,17 @@ function renderizarEscalasParaMusico() {
       <p><strong>Data:</strong> ${escala.data}</p>
       <ul class="list-disc pl-4">
     `;
-
+htmlContent += `
+  <p><strong>Paleta de Cores:</strong></p>
+  <div class="flex gap-2 mb-2">
+    ${escala.paletaCores && JSON.parse(escala.paletaCores).length > 0 
+      ? JSON.parse(escala.paletaCores).map(cor => `
+          <div class="w-6 h-6 rounded-full border border-gray-300" style="background-color:${cor}"></div>
+        `).join("") 
+      : "<span class='text-gray-500'>Nenhuma cor definida</span>"
+    }
+  </div>
+`;
     musicosPorFuncao.forEach(funcao => {
       const nomeMusico = escala[funcao.funcao];
       const status = confirmacoes?.[escala.id]?.[funcao.funcao]?.status || "pendente";
