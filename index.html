@@ -281,8 +281,7 @@
     <div id="toast" class="fixed bottom-4 right-4 hidden bg-green-500 text-white px-4 py-2 rounded shadow-lg transition transform translate-y-2 opacity-0 pointer-events-none z-50">
       Ação realizada!
     </div>
-    <!-- Toggle Dark Mode -->
-    <button id="toggleDarkMode" class="absolute top-4 right-4 bg-gray-800 text-white px-3 py-1 rounded dark:bg-gray-700">🌙 Modo Escuro</button>
+    
   </div>
 </template>
 
@@ -310,6 +309,8 @@
 let usuarios = JSON.parse(localStorage.getItem("usuarios")) || [
   { username: "admin", password: "1234" },
   { username: "lucas", password: "senha123" }
+  
+
 ];
 
 let escalas = [];
@@ -711,8 +712,8 @@ function renderizarEscalasParaMusico() {
     `;
 htmlContent += `
 <p><strong>Cifras/Obs:</strong> ${escala.cifras || '-'}</p>
+<div class="flex gap-2 mb-2">
   <p><strong>Paleta de Cores:</strong></p>
-  <div class="flex gap-2 mb-2">
     ${escala.paletaCores && JSON.parse(escala.paletaCores).length > 0 
       ? JSON.parse(escala.paletaCores).map(cor => `
           <div class="w-6 h-6 rounded-full border border-gray-300" style="background-color:${cor}"></div>
