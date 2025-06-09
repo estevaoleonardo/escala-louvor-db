@@ -710,6 +710,7 @@ function renderizarEscalasParaMusico() {
       <ul class="list-disc pl-4">
     `;
 htmlContent += `
+<p><strong>Cifras/Obs:</strong> ${escala.cifras || '-'}</p>
   <p><strong>Paleta de Cores:</strong></p>
   <div class="flex gap-2 mb-2">
     ${escala.paletaCores && JSON.parse(escala.paletaCores).length > 0 
