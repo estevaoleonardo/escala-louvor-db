@@ -635,13 +635,46 @@
   <script>
     class EscalaSystem {
       constructor() {
-        this.users = [
-          { username: 'admin', password: 'admin', role: 'admin', name: 'Administrador' }
-        ];
-        this.schedules = [];
         this.currentUser = null;
         this.editingSchedule = null;
         this.musicas = [];
+        this.loadData();
+      }
+
+      // Carregar dados do localStorage
+      loadData() {
+        try {
+          const savedUsers = localStorage.getItem('escalaSystem_users');
+          this.users = savedUsers ? JSON.parse(savedUsers) : [
+            { username: 'admin', password: 'admin', role: 'admin', name: 'Administrador' }
+          ];
+          
+          const savedSchedules = localStorage.getItem('escalaSystem_schedules');
+          this.schedules = savedSchedules ? JSON.parse(savedSchedules) : [];
+          
+          console.log('Dados carregados do localStorage:', {
+            users: this.users.length,
+            schedules: this.schedules.length
+          });
+        } catch (error) {
+          console.error('Erro ao carregar dados do localStorage:', error);
+          this.users = [
+            { username: 'admin', password: 'admin', role: 'admin', name: 'Administrador' }
+          ];
+          this.schedules = [];
+        }
+      }
+
+      // Salvar dados no localStorage
+      saveData() {
+        try {
+          localStorage.setItem('escalaSystem_users', JSON.stringify(this.users));
+          localStorage.setItem('escalaSystem_schedules', JSON.stringify(this.schedules));
+          console.log('Dados salvos no localStorage');
+        } catch (error) {
+          console.error('Erro ao salvar dados no localStorage:', error);
+          this.showToast('Erro ao salvar dados localmente', 'error');
+        }
       }
 
       init() {
@@ -739,6 +772,7 @@
           document.getElementById('welcomeMessage').textContent = `Bem-vindo, ${this.currentUser.name || this.currentUser.username}!`;
           this.renderMusicianSchedules();
         }
+        this.showToast('Dados carregados do armazenamento local', 'success');
       }
 
       logout() {
@@ -814,6 +848,7 @@
           name, 
           instruments 
         });
+        this.saveData();
         this.populateMusiciansInSelects();
         this.showToast('Músico cadastrado com sucesso!', 'success');
         this.hideMusicianRegistration();
@@ -890,6 +925,7 @@
       deleteMusician(username) {
         if (confirm(`Tem certeza que deseja excluir o músico ${username}?`)) {
           this.users = this.users.filter(u => u.username !== username);
+          this.saveData();
           this.populateMusiciansInSelects();
           this.renderMusicians();
           this.showToast('Músico removido com sucesso!', 'success');
@@ -932,6 +968,7 @@
         if (userIndex >= 0) {
           this.users[userIndex].password = newPassword;
           this.currentUser.password = newPassword;
+          this.saveData();
           this.hideChangePasswordModal();
           this.showToast('Senha alterada com sucesso!', 'success');
         }
@@ -1108,10 +1145,12 @@
           if (index >= 0) {
             this.schedules[index] = scheduleData;
           }
+          this.saveData();
           this.showToast('Escala atualizada com sucesso!', 'success');
           this.cancelEdit();
         } else {
           this.schedules.push(scheduleData);
+          this.saveData();
           this.showToast('Escala criada com sucesso!', 'success');
           this.resetForm();
         }
@@ -1182,6 +1221,7 @@
       deleteSchedule(schedule) {
         if (confirm(`Tem certeza que deseja excluir a escala de ${new Date(schedule.date).toLocaleDateString('pt-BR')}?`)) {
           this.schedules = this.schedules.filter(s => s.id !== schedule.id);
+          this.saveData();
           this.renderSchedules();
           this.showToast('Escala removida com sucesso!', 'success');
         }
@@ -1190,6 +1230,7 @@
       clearSchedules() {
         if (confirm('Tem certeza que deseja limpar todas as escalas?')) {
           this.schedules = [];
+          this.saveData();
           this.renderSchedules();
           this.showToast('Todas as escalas foram removidas', 'success');
         }
@@ -1693,6 +1734,7 @@
             schedule.confirmations = {};
           }
           schedule.confirmations[musicianName] = true;
+          this.saveData();
           this.showToast('Presença confirmada com sucesso!', 'success');
           this.renderMusicianSchedules();
           if (this.currentUser.role === 'admin') {
@@ -1727,6 +1769,7 @@
               this.showToast('Solicitação de troca enviada!', 'success');
             }
             
+            this.saveData();
             this.renderMusicianSchedules();
             if (this.currentUser.role === 'admin') {
               this.renderSchedules();
@@ -1743,6 +1786,7 @@
           if (requestIndex >= 0) {
             if (confirm(`Marcar solicitação de troca de ${musicianName} como resolvida?`)) {
               schedule.changeRequests.splice(requestIndex, 1);
+              this.saveData();
               this.showToast('Solicitação de troca resolvida!', 'success');
               this.renderSchedules();
               this.renderMusicianResponses();
