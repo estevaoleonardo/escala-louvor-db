@@ -1,0 +1,135 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================
+// ENUMERAÇÕES
+// ==================
+
+enum Role {
+  admin
+  musician
+}
+
+enum Instrument {
+  guitarra
+  baixo
+  teclado
+  violao
+  bateria
+  vocal
+  percussao
+}
+
+// ==================
+// MODELOS DE USUÁRIO
+// ==================
+
+model User {
+  id              String                  @id @default(uuid())
+  name            String
+  email           String                  @unique @db.VarChar(191)
+  username        String                  @unique @db.VarChar(191)
+  password        String
+  role            Role                    @default(musician)
+  createdAt       DateTime                @default(now()) @map("created_at")
+  updatedAt       DateTime                @updatedAt
+
+  // Relações
+  participations  ScheduleParticipation[]
+  confirmations   ScheduleConfirmation[]
+  changeRequests  ScheduleChangeRequest[]
+  
+  // === 1. RELAÇÃO ADICIONADA ===
+  // Esta linha conecta o usuário aos seus "instrumentos principais".
+  instruments     UserInstrument[]
+
+  @@map("users")
+}
+
+// ==================
+// MODELOS DE ESCALA
+// ==================
+
+model Schedule {
+  id             String                  @id @default(uuid())
+  scheduleDate   DateTime                @map("schedule_date") @db.Date
+  cifras         String?                 @db.Text
+  paletaCores    Json?                   @map("paleta_cores")
+  createdAt      DateTime                @default(now()) @map("created_at")
+
+  // Relações
+  participations ScheduleParticipation[]
+  songs          ScheduleSong[]
+  confirmations  ScheduleConfirmation[]
+  changeRequests ScheduleChangeRequest[]
+
+  @@map("schedules")
+}
+
+// Tabela de junção para saber QUEM toca O QUE em QUAL escala
+model ScheduleParticipation {
+  scheduleId   String     @map("schedule_id")
+  userId       String     @map("user_id")
+  instrument   Instrument
+  
+  schedule     Schedule   @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([scheduleId, userId, instrument]) // Adicionado 'instrument' à chave para permitir que um músico toque mais de um instrumento na mesma escala
+  @@map("schedule_participations")
+}
+
+model ScheduleSong {
+  id          Int        @id @default(autoincrement())
+  scheduleId  String     @map("schedule_id")
+  songName    String     @map("song_name")
+  youtubeLink String?    @map("youtube_link")
+  
+  schedule    Schedule   @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@map("schedule_songs")
+}
+
+model ScheduleConfirmation {
+  scheduleId   String   @map("schedule_id")
+  userId       String   @map("user_id")
+  
+  schedule     Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([scheduleId, userId])
+  @@map("schedule_confirmations")
+}
+
+model ScheduleChangeRequest {
+  id           Int      @id @default(autoincrement())
+  scheduleId   String   @map("schedule_id")
+  userId       String   @map("user_id")
+  reason       String?  @db.Text
+  requestDate  DateTime @default(now()) @map("request_date")
+
+  schedule     Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("schedule_change_requests")
+}
+
+// === 2. NOVO MODELO ADICIONADO ===
+// Esta é a nova tabela que armazena a relação entre um usuário
+// e os instrumentos que ele sabe tocar (suas habilidades principais).
+model UserInstrument {
+  userId     String
+  instrument Instrument
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, instrument])
+  @@map("user_instruments")
+}
