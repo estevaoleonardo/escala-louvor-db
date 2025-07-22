@@ -451,14 +451,15 @@
   </div>
 
   <!-- MODAL DE CADASTRO DE MÚSICO -->
-  <div id="cadastroMusicoModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+  <div id="cadastroMusicoModal" class="hidden fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg w-full max-w-md p-6">
-      <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
-        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
-        </svg>
-        Cadastrar Novo Músico
-      </h2>
+    <!-- CÓDIGO CORRIGIDO -->
+<h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+    </svg>
+    <span id="modalTitle">Cadastrar Novo Músico</span>
+</h2>
       <form id="formCadastroMusico" class="space-y-4">
         <div>
           <label for="novoNome" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome Completo</label>
@@ -529,9 +530,9 @@
           <button type="button" id="cancelarCadastroBtn" class="px-4 py-2 border border-gray-300 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
             Cancelar
           </button>
-          <button type="submit" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors">
-            Cadastrar
-          </button>
+          <button id="submitMusicianBtn" type="submit" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors">
+    Cadastrar
+</button>>
         </div>
       </form>
     </div>
@@ -694,19 +695,20 @@
       }
 
       // Carrega todos os dados iniciais da API
-      async loadDataFromAPI() {
+       async loadDataFromAPI() {
         try {
           this.schedules = await this.apiFetch('/schedules');
           
+          // --- ADICIONE ESTA LINHA PARA O TESTE FINAL ---
+          console.log('DADOS RECEBIDOS DA API:', JSON.stringify(this.schedules, null, 2));
+
           if (this.currentUser.role === 'admin') {
-            // Lembre-se que seu backend precisa fazer o 'include' dos instrumentos aqui
             this.users = await this.apiFetch('/users'); 
           }
           
           this.showToast('Dados sincronizados com o servidor!', 'success');
         } catch (error) {
           this.showToast(`Erro ao carregar dados: ${error.message}`, 'error');
-          // Se o token for inválido, desloga o usuário
           if (error.message.includes('Autenticação falhou')) {
             this.logout();
           }
@@ -790,6 +792,50 @@
           toast.remove();
         }, 3000);
       }
+      // Adicione esta nova função à sua classe EscalaSystem
+
+showEditMusicianModal(musicianId) {
+    const musician = this.users.find(u => u.id === musicianId);
+    if (!musician) {
+        this.showToast('Erro: Músico não encontrado.', 'error');
+        return;
+    }
+
+    // Guarda o músico que está sendo editado
+    this.editingMusician = musician;
+
+    // Preenche o formulário de cadastro com os dados do músico
+    document.getElementById('novoNome').value = musician.name || '';
+    document.getElementById('novoUsuario').value = musician.username || '';
+    document.getElementById('novoEmail').value = musician.email || '';
+
+    // Deixa os campos de senha em branco por segurança
+    document.getElementById('novaSenha').value = '';
+    
+    // Marca os checkboxes dos instrumentos que o músico já toca
+    const allInstrumentCheckboxes = ['instBateria', 'instBaixo', 'instTeclado', 'instViolao', 'instGuitarra', 'instPercussao', 'instVocal'];
+    allInstrumentCheckboxes.forEach(id => {
+        document.getElementById(id).checked = false;
+    });
+
+    if (musician.instruments) {
+        musician.instruments.forEach(instObj => {
+            // Constrói o ID do checkbox a partir do nome do instrumento (ex: BATERIA -> instBateria)
+            const checkboxId = `inst${instObj.instrument.charAt(0).toUpperCase() + instObj.instrument.slice(1).toLowerCase()}`;
+            const checkbox = document.getElementById(checkboxId);
+            if (checkbox) {
+                checkbox.checked = true;
+            }
+        });
+    }
+
+    // Adapta a UI do modal para o modo de edição
+    document.getElementById('modalTitle').textContent = 'Editar Músico';
+    document.getElementById('submitMusicianBtn').textContent = 'Salvar Alterações';
+
+    // Mostra o modal de cadastro
+    this.showMusicianRegistration();
+}
       
       // --- Métodos Refatorados com API ---
 
@@ -842,60 +888,171 @@
       }
 
       // Este método está CORRETO e não precisa de alterações, pois envia os dados no formato que o backend espera.
-      async handleMusicianRegistration(e) {
-        e.preventDefault();
-        const name = document.getElementById('novoNome').value.trim();
-        const username = document.getElementById('novoUsuario').value.trim();
-        const email = document.getElementById('novoEmail').value.trim();
-        const password = document.getElementById('novaSenha').value.trim();
+     // Substitua sua função handleMusicianRegistration por esta versão mais inteligente
+
+async handleMusicianRegistration(e) {
+    e.preventDefault();
+    const name = document.getElementById('novoNome').value.trim();
+    const username = document.getElementById('novoUsuario').value.trim();
+    const email = document.getElementById('novoEmail').value.trim();
+    const password = document.getElementById('novaSenha').value.trim();
+    
+    const instruments = [];
+    const checkboxes = ['instBateria', 'instBaixo', 'instTeclado', 'instViolao', 'instGuitarra', 'instPercussao', 'instVocal'];
+    checkboxes.forEach(checkboxId => {
+        const checkbox = document.getElementById(checkboxId);
+        if (checkbox && checkbox.checked) {
+            instruments.push(checkbox.value.toUpperCase());
+        }
+    });
+
+    if (!this.editingMusician && !password) {
+        this.showToast('A senha é obrigatória para novos cadastros.', 'error');
+        return;
+    }
+    if (instruments.length === 0) {
+        this.showToast('Selecione pelo menos um instrumento.', 'error');
+        return;
+    }
+
+    try {
+        let endpoint, method, successMessage, body;
         
-        const instruments = [];
-        const checkboxes = ['instBateria', 'instBaixo', 'instTeclado', 'instViolao', 'instGuitarra', 'instPercussao', 'instVocal'];
-        checkboxes.forEach(checkboxId => {
-            const checkbox = document.getElementById(checkboxId);
-            if (checkbox && checkbox.checked) {
-                instruments.push(checkbox.value);
-            }
+        // Decide se é uma CRIAÇÃO (POST) ou ATUALIZAÇÃO (PUT)
+        if (this.editingMusician) {
+            method = 'PUT';
+            endpoint = `/users/${this.editingMusician.id}`;
+            successMessage = 'Músico atualizado com sucesso!';
+            body = { name, username, email, instruments };
+            if (password) body.password = password; // Só envia a senha se uma nova for digitada
+        } else {
+            method = 'POST';
+            endpoint = '/users';
+            successMessage = 'Músico cadastrado com sucesso!';
+            body = { name, username, email, password, instruments };
+        }
+        
+        await this.apiFetch(endpoint, {
+            method: method,
+            body: JSON.stringify(body)
         });
+        
+        this.showToast(successMessage, 'success');
+        this.hideMusicianRegistration();
+        
+        // Recarrega os dados para a UI ficar atualizada
+        this.users = await this.apiFetch('/users');
+        this.populateMusiciansInSelects();
+        this.renderMusicians();
 
-        if (instruments.length === 0) {
-            this.showToast('Selecione pelo menos um instrumento', 'error');
-            return;
-        }
+    } catch (error) {
+        this.showToast(error.message, 'error');
+    }
+}
+// DENTRO DA CLASSE EscalaSystem
 
-        try {
-            await this.apiFetch('/users', {
-                method: 'POST',
-                body: JSON.stringify({ name, username, email, password, instruments })
-            });
-            
-            this.showToast('Músico cadastrado com sucesso!', 'success');
-            this.hideMusicianRegistration();
-            
-            // Recarrega os usuários para atualizar a lista e os selects
-            this.users = await this.apiFetch('/users');
-            this.populateMusiciansInSelects();
-            this.renderMusicians();
-        } catch (error) {
-            this.showToast(error.message, 'error');
-        }
-      }
+async deleteMusician(musicianId) {
+  // Converte o ID recebido (que pode ser string) para número
+  const numericId = parseInt(musicianId, 10);
 
-      async deleteMusician(musicianId) {
-        const musician = this.users.find(u => u.id === musicianId);
-        if (confirm(`Tem certeza que deseja excluir o músico ${musician.name || musician.username}?`)) {
-          try {
-            await this.apiFetch(`/users/${musicianId}`, { method: 'DELETE' });
-            
-            this.showToast('Músico removido com sucesso!', 'success');
-            this.users = await this.apiFetch('/users');
-            this.populateMusiciansInSelects();
-            this.renderMusicians();
-          } catch (error) {
-            this.showToast(error.message, 'error');
-          }
+  // Encontra o músico no array usando o ID numérico
+  const musician = this.users.find(u => u.id === numericId);
+
+  // VERIFICAÇÃO DE SEGURANÇA: Se o músico não for encontrado, exibe um erro e para.
+  if (!musician) {
+    this.showToast('Erro: Músico não encontrado para exclusão.', 'error');
+    console.error(`Tentativa de excluir músico com ID ${musicianId} que não foi encontrado no array this.users.`);
+    return;
+  }
+
+  // Agora, como temos certeza que 'musician' existe, esta linha é segura.
+  if (confirm(`Tem certeza que deseja excluir o músico ${musician.name || musician.username}?`)) {
+    try {
+      // A API geralmente aceita o ID como string, então não precisa mudar aqui.
+      await this.apiFetch(`/users/${musicianId}`, { method: 'DELETE' });
+      
+      this.showToast('Músico removido com sucesso!', 'success');
+      
+      // Recarrega os dados para atualizar a interface
+      this.users = await this.apiFetch('/users');
+      this.populateMusiciansInSelects();
+      this.renderMusicians(); // Re-renderiza a lista de músicos na consulta
+
+    } catch (error) {
+      this.showToast(error.message, 'error');
+    }
+  }
+}
+editSchedule(scheduleId) {
+    // 1. Encontra o objeto completo da escala usando o ID que recebemos
+    const schedule = this.schedules.find(s => s.id === scheduleId);
+    if (!schedule) {
+        this.showToast('Erro: Não foi possível encontrar a escala para edição.', 'error');
+        return;
+    }
+
+    // 2. Guarda a escala que estamos editando para uso posterior no submit
+    this.editingSchedule = schedule;
+
+    // 3. Preenche os campos do formulário com os dados da escala
+    document.getElementById('data').value = schedule.scheduleDate.split('T')[0]; // Formato YYYY-MM-DD
+    document.getElementById('cifras').value = schedule.cifras || '';
+
+    // Preenche as cores
+    if (schedule.paletaCores && schedule.paletaCores.length === 3) {
+        document.getElementById('cor1').value = schedule.paletaCores[0];
+        document.getElementById('cor2').value = schedule.paletaCores[1];
+        document.getElementById('cor3').value = schedule.paletaCores[2];
+    }
+
+    // Preenche as músicas
+    this.musicas = (schedule.songs || []).map(song => ({
+        nome: song.songName,
+        link: song.youtubeLink
+    }));
+    this.renderMusicasContainer();
+
+    // Preenche os músicos nos selects
+    // Primeiro, limpa todos os selects
+    const allSelects = ['bateria', 'baixo', 'teclado', 'violao', 'guitarra', 'percussao', 'vocal1', 'vocal2', 'vocal3', 'vocal4', 'vocal5', 'vocal6'];
+    allSelects.forEach(id => {
+        const select = document.getElementById(id);
+        if (select) select.value = '';
+    });
+
+    // Agora, preenche os selects com os músicos da escala
+    const vocalSelects = allSelects.filter(id => id.startsWith('vocal'));
+    let vocalIndex = 0;
+
+    (schedule.participations || []).forEach(p => {
+        const instrument = p.instrument.toLowerCase();
+        if (instrument === 'vocal') {
+            if (vocalIndex < vocalSelects.length) {
+                const vocalSelectId = vocalSelects[vocalIndex];
+                const selectElement = document.getElementById(vocalSelectId);
+                if (selectElement) {
+                   selectElement.value = p.userId;
+                }
+                vocalIndex++;
+            }
+        } else {
+            const selectElement = document.getElementById(instrument);
+            if (selectElement) {
+                selectElement.value = p.userId;
+            }
         }
-      }
+    });
+
+    // 4. Melhora a experiência do usuário (UX)
+    const submitBtnText = document.getElementById('submitBtnText');
+    if(submitBtnText) submitBtnText.textContent = 'Salvar Alterações'; // Muda o texto do botão
+    
+    const cancelBtn = document.getElementById('cancelarEdicaoBtn');
+    if(cancelBtn) cancelBtn.classList.remove('hidden'); // Mostra o botão de cancelar
+    
+    const form = document.getElementById('escalaForm');
+    if(form) form.scrollIntoView({ behavior: 'smooth' }); // Rola a tela para o formulário
+}
       
       async handlePasswordChange(e) {
         e.preventDefault();
@@ -921,6 +1078,7 @@
         }
       }
       
+  // Função handleScheduleSubmit CORRIGIDA
       async handleScheduleSubmit(e) {
         e.preventDefault();
         const data = document.getElementById('data').value;
@@ -929,63 +1087,111 @@
           return;
         }
 
+        // --- INÍCIO DA CORREÇÃO ---
+
+        // 1. Mapeia os IDs dos selects do HTML para os valores do ENUM do seu Prisma.
+        //    (IMPORTANTE: os valores aqui 'BATERIA', 'BAIXO', etc., devem ser idênticos
+        //    aos valores definidos no seu enum 'Instrument' no schema.prisma)
+        const instrumentEnumMap = {
+          'bateria': 'BATERIA',
+          'baixo': 'BAIXO',
+          'teclado': 'TECLADO',
+          'violao': 'VIOLAO',
+          'guitarra': 'GUITARRA',
+          'percussao': 'PERCUSSAO',
+          'vocal1': 'VOCAL',
+          'vocal2': 'VOCAL',
+          'vocal3': 'VOCAL',
+          'vocal4': 'VOCAL',
+          'vocal5': 'VOCAL',
+          'vocal6': 'VOCAL',
+        };
+        
+        // 2. Cria o array 'participations' no formato que o backend espera.
+        const participations = [];
+        Object.keys(instrumentEnumMap).forEach(selectId => {
+          const selectElement = document.getElementById(selectId);
+          // Verifica se o select existe e se um músico foi selecionado (se tem um valor)
+          if (selectElement && selectElement.value) {
+            participations.push({
+              userId: selectElement.value,      // O valor do select é o ID do usuário (uma string)
+              instrument: instrumentEnumMap[selectId] // O instrumento correspondente do Enum
+            });
+          }
+        });
+
+        // 3. Monta o objeto de dados final para enviar à API.
         const scheduleData = {
-          date: data,
-          bateria: document.getElementById('bateria').value || null,
-          baixo: document.getElementById('baixo').value || null,
-          teclado: document.getElementById('teclado').value || null,
-          violao: document.getElementById('violao').value || null,
-          guitarra: document.getElementById('guitarra').value || null,
-          percussao: document.getElementById('percussao').value || null,
-          vocal1: document.getElementById('vocal1').value || null,
-          vocal2: document.getElementById('vocal2').value || null,
-          vocal3: document.getElementById('vocal3').value || null,
-          vocal4: document.getElementById('vocal4').value || null,
-          vocal5: document.getElementById('vocal5').value || null,
-          vocal6: document.getElementById('vocal6').value || null,
-          musicas: [...this.musicas],
+          scheduleDate: data,
           cifras: document.getElementById('cifras').value || '',
           paletaCores: [
             document.getElementById('cor1').value,
             document.getElementById('cor2').value,
             document.getElementById('cor3').value
           ],
+          // Músicas no formato que o backend espera
+          songs: this.musicas.map(musica => ({
+            songName: musica.nome,
+            youtubeLink: musica.link
+          })),
+          // O novo array de participações
+          participations: participations
         };
 
-        try {
-          if (this.editingSchedule) {
-            await this.apiFetch(`/schedules/${this.editingSchedule.id}`, {
-              method: 'PUT',
-              body: JSON.stringify(scheduleData)
-            });
-            this.showToast('Escala atualizada com sucesso!', 'success');
-          } else {
-            await this.apiFetch('/schedules', {
-              method: 'POST',
-              body: JSON.stringify(scheduleData)
-            });
-            this.showToast('Escala criada com sucesso!', 'success');
-          }
+        // --- FIM DA CORREÇÃO ---
 
+        // 4. Verifica se o usuário está editando uma escala ou criando uma nova
+        try {
+          // Lógica para saber se é uma criação (POST) ou edição (PUT)
+          const method = this.editingSchedule ? 'PUT' : 'POST';
+          const endpoint = this.editingSchedule ? `/schedules/${this.editingSchedule.id}` : '/schedules';
+          const successMessage = this.editingSchedule ? 'Escala atualizada com sucesso!' : 'Escala criada com sucesso!';
+
+          await this.apiFetch(endpoint, {
+            method: method,
+            body: JSON.stringify(scheduleData)
+          });
+          
+          this.showToast(successMessage, 'success');
+          
+          // Recarrega os dados e atualiza a interface
           await this.loadDataFromAPI();
           this.renderSchedules();
           this.renderMusicianResponses();
-          this.cancelEdit();
+          this.cancelEdit(); // Limpa o formulário
 
         } catch (error) {
-          this.showToast(error.message, 'error');
+          // Exibe qualquer erro retornado pela API
+          this.showToast(`Erro ao salvar escala: ${error.message}`, 'error');
         }
       }
       
-      async deleteSchedule(scheduleId) {
-        const schedule = this.schedules.find(s => s.id === scheduleId);
-        if (confirm(`Tem certeza que deseja excluir a escala de ${new Date(schedule.scheduleDate).toLocaleDateString('pt-BR')}?`)) {
+             async deleteSchedule(scheduleId) {
+        // --- CORREÇÃO: Converte o ID de string para número ---
+        const numericScheduleId = parseInt(scheduleId, 10);
+
+        // Encontra a escala no array usando o ID numérico.
+        const schedule = this.schedules.find(s => s.id === numericScheduleId);
+
+        if (!schedule) {
+          // O console.error agora mostrará os tipos, facilitando a depuração.
+          console.error(`Erro ao excluir: Escala com ID ${scheduleId} (tipo: ${typeof scheduleId}) não foi encontrada no array.`);
+          this.showToast("Erro: Não foi possível encontrar a escala para excluir.", "error");
+          return;
+        }
+
+        const formattedDate = new Date(schedule.scheduleDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+        
+        if (confirm(`Tem certeza que deseja excluir a escala de ${formattedDate}?`)) {
           try {
+            // A API geralmente aceita o ID como string ou número, então não precisa mudar aqui.
             await this.apiFetch(`/schedules/${scheduleId}`, { method: 'DELETE' });
             this.showToast('Escala removida com sucesso!', 'success');
+            
             await this.loadDataFromAPI();
             this.renderSchedules();
             this.renderMusicianResponses();
+
           } catch (error) {
             this.showToast(error.message, 'error');
           }
@@ -1070,46 +1276,56 @@
         document.getElementById('consultaMusicoModal').classList.add('hidden');
       }
 
-      renderMusicians(searchTerm = '') {
-        let filteredMusicians = this.users.filter(u => u.role === 'musician');
+   // DENTRO DA CLASSE EscalaSystem
 
-        if (searchTerm) {
-          const lowerSearchTerm = searchTerm.toLowerCase();
-          filteredMusicians = filteredMusicians.filter(m =>
+renderMusicians(searchTerm = '') {
+    // Filtra para pegar apenas usuários com a role 'musician'
+    let filteredMusicians = this.users.filter(u => u.role === 'musician');
+
+    // Se houver um termo de busca, filtra os resultados
+    if (searchTerm) {
+        const lowerSearchTerm = searchTerm.toLowerCase();
+        filteredMusicians = filteredMusicians.filter(m =>
             m.name.toLowerCase().includes(lowerSearchTerm) ||
             m.username.toLowerCase().includes(lowerSearchTerm) ||
-            // <<< CORREÇÃO 1: Adaptar a busca para o novo formato de dados de instrumentos.
-            // Transforma o array de objetos em uma string e então busca nessa string.
+            (m.email && m.email.toLowerCase().includes(lowerSearchTerm)) || // <-- Adicionado busca por email
             (m.instruments && m.instruments.map(inst => inst.instrument).join(' ').toLowerCase().includes(lowerSearchTerm))
-          );
-        }
+        );
+    }
 
-        const container = document.getElementById('musicosList');
-        if (filteredMusicians.length === 0) {
-          container.innerHTML = `<div class="text-center py-8"><p class="text-gray-600 dark:text-gray-400">Nenhum músico encontrado.</p></div>`;
-          return;
-        }
+    const container = document.getElementById('musicosList');
+    if (!container) return; // Garante que o container existe
+    
+    // Se não encontrar músicos, exibe uma mensagem
+    if (filteredMusicians.length === 0) {
+        container.innerHTML = `<div class="text-center py-8"><p class="text-gray-600 dark:text-gray-400">Nenhum músico encontrado.</p></div>`;
+        return;
+    }
 
-        container.innerHTML = filteredMusicians.map(musician => `
-          <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border">
+    // Cria o HTML para cada músico encontrado
+    container.innerHTML = filteredMusicians.map(musician => `
+        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border dark:border-gray-600">
             <div class="flex justify-between items-start">
-              <div class="flex-1">
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">${musician.name || musician.username}</h3>
-                <div class="space-y-1 text-sm text-gray-600 dark:text-gray-400">
-                  <p><span class="font-medium">Usuário:</span> ${musician.username}</p>
-                  
-                  <!-- <<< CORREÇÃO 2: Adaptar a exibição dos instrumentos. -->
-                  <!-- Extrai apenas o nome do instrumento de cada objeto e os une com vírgula. -->
-                  <p><span class="font-medium">Instrumentos:</span> ${musician.instruments && musician.instruments.length > 0 ? musician.instruments.map(inst => inst.instrument).join(', ') : 'Não informado'}</p>
-                
+                <div class="flex-1 space-y-1 text-sm text-gray-600 dark:text-gray-400">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">${musician.name || musician.username}</h3>
+                    
+                    <p><span class="font-medium">Usuário:</span> ${musician.username}</p>
+                    
+                    <!-- =====> 1. CAMPO DE EMAIL ADICIONADO AQUI <===== -->
+                    <p><span class="font-medium">Email:</span> ${musician.email || 'Não informado'}</p>
+                    
+                    <p><span class="font-medium">Instrumentos:</span> ${musician.instruments && musician.instruments.length > 0 ? musician.instruments.map(inst => inst.instrument).join(', ') : 'Não informado'}</p>
                 </div>
-              </div>
-              <div class="flex gap-2">
-                <button onclick="escalaSystem.deleteMusician('${musician.id}')" class="px-3 py-1 text-sm border border-red-300 text-red-700 hover:bg-red-50 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-900/20 rounded transition-colors">Excluir</button>
-              </div>
+                <div class="flex items-center gap-2">
+                    <!-- =====> 2. BOTÃO DE EDITAR ADICIONADO AQUI <===== -->
+                    <button onclick="escalaSystem.showEditMusicianModal(${musician.id})" class="px-3 py-1 text-sm border border-gray-300 text-gray-700 hover:bg-gray-100 dark:border-gray-500 dark:text-gray-300 dark:hover:bg-gray-600 rounded transition-colors">Editar</button>
+                    
+                    <button onclick="escalaSystem.deleteMusician(${musician.id})" class="px-3 py-1 text-sm border border-red-300 text-red-700 hover:bg-red-50 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-900/20 rounded transition-colors">Excluir</button>
+                </div>
             </div>
-          </div>`).join('');
-      }
+        </div>
+    `).join('');
+}
 
       filterMusicians(searchTerm) {
         this.renderMusicians(searchTerm);
@@ -1168,133 +1384,773 @@
         this.showToast('Música removida da lista', 'info');
       }
 
+     
+ // Função para mostrar apenas os músicos que tocam o instrumento específico
       populateMusiciansInSelects() {
         const musicians = this.users.filter(u => u.role === 'musician');
-        const selects = ['bateria', 'baixo', 'teclado', 'violao', 'guitarra', 'percussao', 'vocal1', 'vocal2', 'vocal3', 'vocal4', 'vocal5', 'vocal6'];
-        
+        const selects = [
+          'bateria', 'baixo', 'teclado', 'violao', 'guitarra', 'percussao',
+          'vocal1', 'vocal2', 'vocal3', 'vocal4', 'vocal5', 'vocal6'
+        ];
+
+        const instrumentMapping = {
+          'bateria': 'bateria', 'baixo': 'baixo', 'teclado': 'teclado',
+          'violao': 'violao', 'guitarra': 'guitarra', 'percussao': 'percussao',
+          'vocal1': 'vocal', 'vocal2': 'vocal', 'vocal3': 'vocal',
+          'vocal4': 'vocal', 'vocal5': 'vocal', 'vocal6': 'vocal'
+        };
+
         selects.forEach(selectId => {
           const select = document.getElementById(selectId);
           if (!select) return;
 
           const currentValue = select.value;
           select.innerHTML = '<option value="">Selecione</option>';
-          
-          const instrumentMapping = { 'bateria': 'bateria', 'baixo': 'baixo', 'teclado': 'teclado', 'violao': 'violao', 'guitarra': 'guitarra', 'percussao': 'percussao', 'vocal1': 'vocal', 'vocal2': 'vocal', 'vocal3': 'vocal', 'vocal4': 'vocal', 'vocal5': 'vocal', 'vocal6': 'vocal' };
-          const targetInstrument = instrumentMapping[selectId];
 
-          if (targetInstrument) {
-            musicians
-              // <<< CORREÇÃO 3: Usar 'some' em vez de 'includes'.
-              // 'some' verifica se pelo menos um objeto no array de instrumentos corresponde à condição.
-              .filter(m => m.instruments && m.instruments.some(inst => inst.instrument === targetInstrument))
-              .forEach(m => {
-                const option = document.createElement('option');
-                option.value = m.name;
-                option.textContent = m.name;
-                select.appendChild(option);
-              });
-          }
+          const targetInstrument = instrumentMapping[selectId];
+          if (!targetInstrument) return;
+
+          // CORREÇÃO 1: Filtra os músicos checando o array de objetos de instrumentos
+          const filteredMusicians = musicians.filter(musician => {
+            if (musician.instruments && Array.isArray(musician.instruments)) {
+              return musician.instruments.some(instObj => 
+                instObj.instrument && instObj.instrument.toLowerCase() === targetInstrument
+              );
+            }
+            return false;
+          });
+
+          // CORREÇÃO 2: Adiciona os músicos filtrados, usando o ID como valor da opção
+          filteredMusicians.forEach(musician => {
+             const option = document.createElement('option');
+  
+  // Define o ID do músico como o valor da opção
+  option.value = musician.id; // <-- LINHA ADICIONADA/CORRIGIDA
+  
+  // Define o nome do músico como o texto visível da opção
+  option.textContent = musician.name || musician.username;
+  
+  select.appendChild(option);
+          });
+          
           select.value = currentValue;
         });
       }
+   
 
-      resetForm() {
-        document.getElementById('escalaForm').reset();
-        this.musicas = [];
-        this.renderMusicasContainer();
-        document.getElementById('cor1').value = '#4F46E5';
-        document.getElementById('cor2').value = '#3B82F6';
-        document.getElementById('cor3').value = '#10B981';
+
+
+      filterSchedules(searchTerm) {
+        this.renderSchedules(searchTerm);
       }
 
-      editSchedule(scheduleId) {
-        const schedule = this.schedules.find(s => s.id === scheduleId);
-        if(!schedule) return;
-
-        this.editingSchedule = schedule;
-        document.getElementById('formTitle').textContent = 'Editar Escala';
-        document.getElementById('cancelarEdicaoBtn').classList.remove('hidden');
-
-        document.getElementById('data').value = schedule.scheduleDate.split('T')[0];
-        const fields = ['bateria', 'baixo', 'teclado', 'violao', 'guitarra', 'percussao', 'vocal1', 'vocal2', 'vocal3', 'vocal4', 'vocal5', 'vocal6', 'cifras'];
-        fields.forEach(field => {
-            if (document.getElementById(field)) {
-                // Aqui seria necessário adaptar se você mudar a estrutura de escala
-                document.getElementById(field).value = schedule[field] || '';
-            }
-        });
-
-        // Adaptação para o novo formato de musicas
-        this.musicas = schedule.songs ? schedule.songs.map(s => ({ nome: s.songName, link: s.youtubeLink })) : [];
-        this.renderMusicasContainer();
-
-        const colors = schedule.paletaCores || ['#4F46E5', '#3B82F6', '#10B981'];
-        document.getElementById('cor1').value = colors[0];
-        document.getElementById('cor2').value = colors[1];
-        document.getElementById('cor3').value = colors[2];
-
-        window.scrollTo(0, 0);
+      filterMusicianSchedules(searchTerm) {
+        this.renderMusicianSchedules(searchTerm);
       }
 
-      cancelEdit() {
-        this.editingSchedule = null;
-        document.getElementById('formTitle').textContent = 'Nova Escala';
-        document.getElementById('cancelarEdicaoBtn').classList.add('hidden');
-        this.resetForm();
-      }
+      // DENTRO DA CLASSE EscalaSystem
 
-      filterSchedules(searchTerm) { this.renderSchedules(searchTerm); }
-      filterMusicianSchedules(searchTerm) { this.renderMusicianSchedules(searchTerm); }
-      
-      renderSchedules(searchTerm = '') { 
-          // Esta função depende muito da sua API, mas o card está pronto para receber o ID
-          const container = document.getElementById('escalasList');
-          let filteredSchedules = this.schedules;
-          if (searchTerm) { /* ... filtro ... */ }
-          if (filteredSchedules.length === 0) { /* ... mensagem de "nada encontrado" ... */ }
+renderSchedules(searchTerm = '') {
+    const container = document.getElementById('escalasList');
+    if (!container) return;
 
-          container.innerHTML = filteredSchedules.map(schedule => this.renderScheduleCard(schedule)).join('');
-      }
+    let filteredSchedules = [...this.schedules];
 
-      renderScheduleCard(schedule) {
-        // ... (renderização do card de escala, que parece estar ok) ...
-        const colors = schedule.paletaCores || ['#4F46E5', '#3B82F6', '#10B981'];
-        const musicas = schedule.songs || [];
-        const formatDate = (dateString) => new Date(dateString).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-        
-        return `
-          <div class="bg-white dark:bg-gray-800 rounded-lg shadow border-l-4 p-6" style="border-left-color: ${colors[0]}">
-            <div class="flex justify-between items-start mb-4">
-              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">${formatDate(schedule.scheduleDate)}</h3>
-              <div class="flex items-center gap-2">
-                <button onclick="escalaSystem.generatePDF('${schedule.id}')" class="px-3 py-1 border rounded text-sm">PDF</button>
-                <button onclick="escalaSystem.editSchedule('${schedule.id}')" class="px-3 py-1 border rounded text-sm">Editar</button>
-                <button onclick="escalaSystem.deleteSchedule('${schedule.id}')" class="px-3 py-1 border rounded text-sm text-red-600">Excluir</button>
-              </div>
-            </div>
-            <!-- ... o resto da renderização do card continua aqui ... -->
-          </div>`;
-      }
-
-      renderMusicianSchedules(searchTerm = '') { /* ... Implementar lógica de renderização para o músico ... */ }
-      getMusicianInstruments(schedule, musicianName) { /* ... Implementar lógica ... */ }
-      renderMusicianScheduleCard(schedule) { /* ... Implementar lógica ... */ }
-      isConfirmed(schedule, musicianName) { /* ... Implementar lógica ... */ }
-      renderMusicianResponses() { /* ... Implementar lógica ... */ }
-      generatePDF(scheduleId) {
-        const schedule = this.schedules.find(s => s.id === scheduleId);
-        if(!schedule) { this.showToast('Escala não encontrada para gerar PDF.', 'error'); return; }
-        //... resto do código do PDF
-      }
+    if (searchTerm) {
+        // Esta parte do filtro pode dar erro se 'schedule.date' não existir mais.
+        // Vamos comentar por enquanto para garantir que não interfira no teste.
+        /*
+        filteredSchedules = this.schedules.filter(schedule =>
+            schedule.date.includes(searchTerm) ||
+            (schedule.musicas && schedule.musicas.some(m => m.nome.toLowerCase().includes(searchTerm.toLowerCase()))) ||
+            Object.values(schedule).some(value =>
+                typeof value === 'string' && value.toLowerCase().includes(searchTerm.toLowerCase())
+            )
+        );
+        */
     }
 
-    // Initialize the system when DOM is loaded
-    let escalaSystem;
+    console.log('Renderizando escalas:', filteredSchedules.length, 'de', this.schedules.length);
+
+    if (filteredSchedules.length === 0) {
+        container.innerHTML = `
+        <div class="text-center py-12">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Nenhuma escala encontrada</h3>
+            <p class="text-gray-600 dark:text-gray-400">
+            ${searchTerm ? 'Nenhuma escala corresponde aos seus critérios de busca.' : 'Ainda não há escalas cadastradas. Crie uma nova escala preenchendo o formulário acima.'}
+            </p>
+        </div>
+        `;
+        return;
+    }
+
+    try {
+        container.innerHTML = filteredSchedules.map(schedule => {
+            
+            // =============================================================
+            // =====> ESTA É A LINHA MAIS IMPORTANTE PARA O NOSSO TESTE <=====
+            console.log('Dados da escala para o card:', schedule);
+            // =============================================================
+
+            // Agora chamamos a função que desenha o card
+            return this.renderScheduleCard(schedule, true);
+
+        }).join('');
+    } catch (error) {
+        console.error('Erro ao renderizar escalas:', error);
+        container.innerHTML = `
+        <div class="text-center py-12">
+            <p class="text-red-600">Erro ao carregar escalas. Tente recarregar a página.</p>
+        </div>
+        `;
+    }
+}
+
+// DENTRO DA CLASSE EscalaSystem
+
+renderMusicianSchedules(searchTerm = '') {
+    const container = document.getElementById('musicianScheduleList');
+    if (!container) {
+        console.error("Elemento 'musicianScheduleList' não encontrado no DOM.");
+        return;
+    }
+
+    // Garante que currentUser e schedules estão carregados
+    if (!this.currentUser || !this.schedules || this.schedules.length === 0) {
+        container.innerHTML = `<div class="text-center py-8"><p class="text-gray-600 dark:text-gray-400">Nenhuma escala disponível ou dados não carregados.</p></div>`;
+        document.getElementById('scheduleCount').textContent = 0; // Zera o contador
+        return;
+    }
+
+    // Filtra as escalas onde o músico logado participa pelo ID do usuário
+    let musicianSchedules = this.schedules.filter(schedule =>
+        schedule.participations && schedule.participations.some(p => 
+            // Converte ambos para número para garantir a comparação correta, caso os tipos sejam diferentes
+            parseInt(p.userId, 10) === parseInt(this.currentUser.id, 10)
+        )
+    );
+
+    // Aplica filtro de busca, se houver
+    if (searchTerm) {
+        const lowerSearchTerm = searchTerm.toLowerCase();
+        musicianSchedules = musicianSchedules.filter(schedule => {
+            // Usa 'scheduleDate' conforme os dados da API
+            const dateStr = new Date(schedule.scheduleDate).toLocaleDateString('pt-BR');
+            // Usa 'songs' e 'songName' conforme os dados da API
+            const songsText = schedule.songs && schedule.songs.map(s => s.songName).join(' ').toLowerCase();
+            const cifrasText = schedule.cifras && schedule.cifras.toLowerCase();
+
+            return dateStr.includes(lowerSearchTerm) || 
+                   (songsText && songsText.includes(lowerSearchTerm)) || 
+                   (cifrasText && cifrasText.includes(lowerSearchTerm));
+        });
+    }
+
+    // Ordena as escalas por data (as mais recentes primeiro)
+    musicianSchedules.sort((a, b) => new Date(b.scheduleDate) - new Date(a.scheduleDate));
+
+    // Atualiza o contador de escalas visíveis
+    document.getElementById('scheduleCount').textContent = musicianSchedules.length;
+
+    if (musicianSchedules.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-12">
+              <svg class="h-12 w-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+              </svg>
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Nenhuma escala encontrada</h3>
+              <p class="text-gray-600 dark:text-gray-400">
+                ${searchTerm ? 'Nenhuma escala corresponde aos seus critérios de busca.' : 'Você ainda não está escalado para nenhuma apresentação.'}
+              </p>
+            </div>
+          `;
+        return;
+    }
+
+    container.innerHTML = musicianSchedules.map(schedule => this.renderMusicianScheduleCard(schedule)).join('');
+}
+
+      getMusicianInstruments(schedule, musicianName) {
+        const instruments = [];
+        if (schedule.bateria === musicianName) instruments.push('Bateria');
+        if (schedule.baixo === musicianName) instruments.push('Baixo');
+        if (schedule.teclado === musicianName) instruments.push('Teclado');
+        if (schedule.violao === musicianName) instruments.push('Violão');
+        if (schedule.guitarra === musicianName) instruments.push('Guitarra');
+        if (schedule.percussao === musicianName) instruments.push('Percussão');
+        if (schedule.vocal1 === musicianName) instruments.push('Vocal 1');
+        if (schedule.vocal2 === musicianName) instruments.push('Vocal 2');
+        if (schedule.vocal3 === musicianName) instruments.push('Vocal 3');
+        if (schedule.vocal4 === musicianName) instruments.push('Vocal 4');
+        if (schedule.vocal5 === musicianName) instruments.push('Vocal 5');
+        if (schedule.vocal6 === musicianName) instruments.push('Vocal 6');
+        return instruments;
+      }
+
+
+
+// SUBSTITUA A SUA FUNÇÃO ANTIGA POR ESTA
+renderScheduleCard(schedule, showActions) {
+    // --- INÍCIO DA CORREÇÃO ---
+    // Acessa os dados da nova estrutura que vem do backend
+    const participations = schedule.participations || [];
+    const songs = schedule.songs || [];
+    const colors = Array.isArray(schedule.paletaCores) ? schedule.paletaCores : ['#4F46E5', '#3B82F6', '#10B981'];
+
+    const formatDate = (dateString) => {
+        const date = new Date(dateString);
+        // Corrige o problema comum de fuso horário que mostra um dia a menos
+        const userTimezoneOffset = date.getTimezoneOffset() * 60000;
+        const correctedDate = new Date(date.getTime() + userTimezoneOffset);
+        
+        return correctedDate.toLocaleDateString('pt-BR', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    };
+
+    // Botões de ação (Editar/Excluir) para a visão do admin
+    const actionsHtml = showActions ? `
+      <div class="flex gap-2">
+        <button onclick="escalaSystem.editSchedule(${schedule.id})" 
+          class="px-3 py-1 text-sm border border-gray-300 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/20 rounded transition-colors">
+          Editar
+        </button>
+        <button onclick="escalaSystem.deleteSchedule(${schedule.id})" 
+          class="px-3 py-1 text-sm border border-gray-300 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-900/20 rounded transition-colors">
+          Excluir
+        </button>
+      </div>
+    ` : '';
+
+    return `
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow duration-200 border-l-4" style="border-left-color: ${colors[0] || '#4F46E5'}">
+        <div class="p-6">
+          <div class="flex justify-between items-start mb-4">
+            <div class="space-y-1">
+              <h3 class="text-xl font-bold text-gray-900 dark:text-white">${formatDate(schedule.scheduleDate)}</h3>
+            </div>
+            ${actionsHtml}
+          </div>
+
+          <!-- Musicians (Área Corrigida) -->
+          <h4 class="font-semibold text-gray-900 dark:text-white mb-3">Equipe:</h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-2 mb-4 text-sm">
+            ${participations.length > 0 ? participations.map(p => `
+              <div>
+                <span class="font-medium text-gray-700 dark:text-gray-300 capitalize">${(p.instrument || '').toLowerCase()}:</span> 
+                <span class="text-gray-900 dark:text-white">${p.user ? (p.user.name || p.user.username) : 'Usuário não encontrado'}</span>
+              </div>
+            `).join('') : '<p class="text-gray-500 col-span-full">Nenhum músico escalado.</p>'}
+          </div>
+
+          <!-- Songs -->
+          ${songs.length > 0 ? `
+            <div class="border-t pt-4 mt-4">
+              <h4 class="font-semibold text-gray-900 dark:text-white mb-3">Músicas:</h4>
+              <div class="space-y-3">
+                ${songs.map(song => `
+                  <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                    <h5 class="font-medium text-gray-900 dark:text-white">${song.songName}</h5>
+                    ${song.youtubeLink ? `
+                      <div class="mt-2">
+                        <a href="${song.youtubeLink}" target="_blank" class="text-blue-600 hover:text-blue-700 dark:text-blue-400 text-sm flex items-center gap-1">
+                          Ver no YouTube
+                        </a>
+                      </div>
+                    ` : ''}
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- Notes -->
+          ${schedule.cifras ? `
+            <div class="border-t pt-4 mt-4">
+              <h4 class="font-semibold text-gray-900 dark:text-white mb-2">Observações:</h4>
+              <p class="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">${schedule.cifras}</p>
+            </div>
+          ` : ''}
+
+          <!-- Color palette -->
+          <div class="border-t pt-4 mt-4">
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Paleta:</span>
+              <div class="flex gap-1">
+                ${colors.map(color => `<div class="w-4 h-4 rounded border border-gray-300" style="background-color: ${color}"></div>`).join('')}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    // --- FIM DA CORREÇÃO ---
+}
+
+      getColorPalette(paletaCores) {
+        try {
+          return paletaCores ? JSON.parse(paletaCores) : ['#4F46E5', '#3B82F6', '#10B981'];
+        } catch {
+          return ['#4F46E5', '#3B82F6', '#10B981'];
+        }
+      }
+
+      isConfirmed(schedule, musicianName) {
+        return schedule.confirmations && schedule.confirmations[musicianName] === true;
+      }
+
+      confirmSchedule(scheduleId, musicianName) {
+        const schedule = this.schedules.find(s => s.id == scheduleId);
+        if (schedule) {
+          if (!schedule.confirmations) {
+            schedule.confirmations = {};
+          }
+          schedule.confirmations[musicianName] = true;
+          this.showToast('Presença confirmada com sucesso!', 'success');
+          this.renderMusicianSchedules();
+          if (this.currentUser.role === 'admin') {
+            this.renderSchedules();
+            this.renderMusicianResponses();
+          }
+        }
+      }
+
+      requestChange(scheduleId, musicianName) {
+        const schedule = this.schedules.find(s => s.id == scheduleId);
+        if (schedule) {
+          const reason = prompt('Por favor, informe o motivo da solicitação de troca:');
+          if (reason && reason.trim()) {
+            if (!schedule.changeRequests) {
+              schedule.changeRequests = [];
+            }
+            
+            // Check if musician already requested a change
+            const existingRequest = schedule.changeRequests.find(req => req.musician === musicianName);
+            if (existingRequest) {
+              existingRequest.reason = reason.trim();
+              existingRequest.date = new Date().toISOString();
+              this.showToast('Solicitação de troca atualizada!', 'success');
+            } else {
+              schedule.changeRequests.push({
+                musician: musicianName,
+                reason: reason.trim(),
+                date: new Date().toISOString(),
+                status: 'pending'
+              });
+              this.showToast('Solicitação de troca enviada!', 'success');
+            }
+            
+            this.renderMusicianSchedules();
+            if (this.currentUser.role === 'admin') {
+              this.renderSchedules();
+              this.renderMusicianResponses();
+            }
+          }
+        }
+      }
+
+      resolveChangeRequest(scheduleId, musicianName) {
+        const schedule = this.schedules.find(s => s.id == scheduleId);
+        if (schedule && schedule.changeRequests) {
+          const requestIndex = schedule.changeRequests.findIndex(req => req.musician === musicianName);
+          if (requestIndex >= 0) {
+            if (confirm(`Marcar solicitação de troca de ${musicianName} como resolvida?`)) {
+              schedule.changeRequests.splice(requestIndex, 1);
+              this.showToast('Solicitação de troca resolvida!', 'success');
+              this.renderSchedules();
+              this.renderMusicianResponses();
+            }
+          }
+        }
+      }
+
+     // DENTRO DA CLASSE EscalaSystem
+
+// DENTRO DA CLASSE EscalaSystem
+
+renderMusicianScheduleCard(schedule) {
+    // Acessa as propriedades conforme a estrutura da API
+    const scheduleDate = schedule.scheduleDate; // É uma string ISO, será formatada abaixo
+    const songs = schedule.songs || [];
+    const participations = schedule.participations || []; // Array de participations
+
+    // Formatação da Data: Usa scheduleDate, não schedule.date
+    const formattedDate = scheduleDate ? 
+        new Date(scheduleDate).toLocaleDateString('pt-BR', {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+        }) : 
+        'Data Inválida';
+
+    // Obtém os instrumentos do usuário logado usando o ID (mais robusto)
+    const musicianInstruments = this.getMusicianInstruments(schedule, this.currentUser.id);
+
+    // Mapeia todas as participações para exibir a seção "Músicos"
+    const allMusiciansInScheduleHtml = participations.length > 0 ? participations.map(p => `
+        <div class="flex flex-col">
+            <span class="font-medium text-gray-700 dark:text-gray-300 capitalize">${(p.instrument || '').toLowerCase()}:</span> 
+            <span class="text-gray-900 dark:text-white">${p.user ? (p.user.name || p.user.username) : 'Usuário não encontrado'}</span>
+        </div>
+    `).join('') : '<p class="text-gray-500 col-span-full">Nenhum músico escalado.</p>';
+
+    // Mapeia as músicas
+    const songsListHtml = songs.length > 0 ? songs.map((song, index) => `
+        <div class="flex items-start gap-3 text-sm">
+            <span class="flex-shrink-0 w-6 h-6 bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 rounded-full flex items-center justify-center text-xs font-medium">
+                ${index + 1}
+            </span>
+            <div class="flex-1">
+                <p class="text-gray-900 dark:text-white font-medium">${song.songName}</p>
+                ${song.youtubeLink ? `
+                    <a href="${song.youtubeLink}" target="_blank" class="text-blue-600 hover:text-blue-700 dark:text-blue-400 text-xs">
+                        Ver no YouTube
+                    </a>
+                ` : ''}
+            </div>
+        </div>
+    `).join('') : '<p class="text-gray-500">Nenhuma música adicionada.</p>';
+
+    // Lógica crucial para os botões de confirmação/recusa/troca
+    const isConfirmedForCurrentUser = schedule.confirmations && schedule.confirmations.some(c => 
+        parseInt(c.userId, 10) === parseInt(this.currentUser.id, 10)
+    );
+    const hasRequestedChangeForCurrentUser = schedule.changeRequests && schedule.changeRequests.some(req => 
+        parseInt(req.userId, 10) === parseInt(this.currentUser.id, 10)
+    );
+    // Verificar se o usuário recusou (pode ser um tipo específico de changeRequest ou um campo dedicado 'recused')
+    // Por enquanto, vamos considerar 'Recusar' como uma 'Solicitar Troca' que o admin pode interpretar.
+    // Se tiver um status 'RECUSED' na API, precisaria de uma verificação adicional aqui.
+
+    let statusText = 'Pendente';
+    let statusColor = 'text-gray-500 dark:text-gray-400';
+    let actionButtonsHtml = '';
+
+    if (isConfirmedForCurrentUser) {
+        statusText = 'Presença Confirmada';
+        statusColor = 'text-green-600 dark:text-green-400';
+        actionButtonsHtml = `
+            <button class="px-4 py-2 bg-gray-400 text-white rounded-md cursor-not-allowed flex-1 flex items-center justify-center gap-1" disabled>
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                Confirmado
+            </button>
+        `;
+    } else if (hasRequestedChangeForCurrentUser) {
+        statusText = 'Troca Solicitada';
+        statusColor = 'text-yellow-600 dark:text-yellow-400';
+        actionButtonsHtml = `
+            <button class="px-4 py-2 bg-gray-400 text-white rounded-md cursor-not-allowed flex-1 flex items-center justify-center gap-1" disabled>
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                </svg>
+                Solicitação Pendente
+            </button>
+        `;
+    } else { // Pendente de ação
+        actionButtonsHtml = `
+            <button onclick="escalaSystem.confirmSchedule(${schedule.id})" 
+                class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded text-sm transition-colors flex items-center justify-center gap-1 flex-1">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                Confirmar Presença
+            </button>
+            <button onclick="escalaSystem.requestChange(${schedule.id}, 'RECUSED')" 
+                class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded text-sm transition-colors flex items-center justify-center gap-1 flex-1">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+                Recusar
+            </button>
+            <button onclick="escalaSystem.requestChange(${schedule.id}, 'CHANGE')" 
+                class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded text-sm transition-colors flex items-center justify-center gap-1 flex-1">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                </svg>
+                Solicitar Troca
+            </button>
+        `;
+    }
+
+    // Obtendo a paleta de cores (se schedule.paletaCores for undefined ou vazio, usará um padrão)
+    const colors = Array.isArray(schedule.paletaCores) && schedule.paletaCores.length > 0 
+                   ? schedule.paletaCores 
+                   : ['#4F46E5', '#3B82F6', '#10B981']; // Padrão se não houver cores
+
+    return `
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow border-l-4 p-6 mb-6" style="border-left-color: ${colors[0]}">
+            <div class="flex justify-between items-start mb-4">
+                <div class="flex items-center gap-3">
+                    <svg class="h-5 w-5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 8a3 3 0 106 0v-3m-6 3h6"></path>
+                    </svg>
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">${formattedDate}</h3>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="flex gap-1">
+                        ${colors.map(color => `<div class="w-3 h-3 rounded-full" style="background-color: ${color}"></div>`).join('')}
+                    </div>
+                    <button onclick="escalaSystem.generatePDF(${schedule.id})" 
+                        class="px-3 py-1 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded text-sm transition-colors flex items-center gap-1">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        PDF
+                    </button>
+                </div>
+            </div>
+
+            <div class="mb-6">
+                <h4 class="text-md font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    </svg>
+                    Músicos
+                </h4>
+                
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 text-sm">
+                    ${allMusiciansInScheduleHtml}
+                </div>
+            </div>
+
+            ${songs.length > 0 ? `
+                <div class="mb-6">
+                    <h4 class="text-md font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+                        </svg>
+                        Músicas (${songs.length})
+                    </h4>
+                    
+                    <div class="space-y-2">
+                        ${songsListHtml}
+                    </div>
+                </div>
+            ` : ''}
+
+            ${schedule.cifras ? `
+                <div class="mb-6">
+                    <h4 class="text-md font-semibold text-gray-900 dark:text-white mb-2">Observações/Cifras</h4>
+                    <div class="bg-gray-50 dark:bg-gray-700 rounded p-3">
+                        <p class="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">${schedule.cifras}</p>
+                    </div>
+                </div>
+            ` : ''}
+
+            <div class="border-t pt-4 mt-4">
+                <div class="flex items-center gap-2">
+                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Paleta:</span>
+                    <div class="flex gap-1">
+                        ${colors.map(color => `<div class="w-4 h-4 rounded border border-gray-300" style="background-color: ${color}"></div>`).join('')}
+                    </div>
+                </div>
+            </div>
+
+            <div class="border-t pt-4">
+                <h4 class="text-md font-semibold text-gray-900 dark:text-white mb-3">Suas Participações</h4>
+                
+                ${musicianInstruments.length > 0 ? musicianInstruments.map(instrument => `
+                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-3">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="font-medium text-gray-900 dark:text-white">${instrument}</span>
+                            <span class="px-3 py-1 ${statusColor.replace('text-', 'bg-').replace('dark:text-', 'dark:bg-').replace('dark:bg-gray-400', 'dark:bg-gray-700')} text-white rounded-full text-sm font-medium flex items-center gap-1">
+                                ${isConfirmedForCurrentUser ? `<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>` : ''}
+                                ${statusText}
+                            </span>
+                        </div>
+                        
+                        <div class="flex flex-wrap gap-2">
+                            ${actionButtonsHtml}
+                        </div>
+                    </div>
+                `).join('') : '<p class="text-gray-500">Você não está escalado para esta data.</p>'}
+            </div>
+        </div>
+    `;
+}
+
+      generatePDF(scheduleId) {
+        this.showToast('Funcionalidade de PDF em desenvolvimento', 'info');
+      }
+
+      renderMusicianResponses() {
+        const container = document.getElementById('musicianResponsesList');
+        if (!container) return;
+
+        const responses = this.getMusicianResponses();
+
+        if (responses.length === 0) {
+          container.innerHTML = `
+            <div class="flex flex-col items-center justify-center py-8 text-center">
+              <svg class="h-12 w-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <p class="text-gray-500 dark:text-gray-400 text-sm">Nenhuma resposta dos músicos ainda</p>
+            </div>
+          `;
+          return;
+        }
+
+        const groupedBySchedule = {};
+        responses.forEach(response => {
+          if (!groupedBySchedule[response.scheduleId]) {
+            groupedBySchedule[response.scheduleId] = {
+              schedule: response.schedule,
+              responses: []
+            };
+          }
+          groupedBySchedule[response.scheduleId].responses.push(response);
+        });
+
+        container.innerHTML = Object.values(groupedBySchedule).map(group => `
+          <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-4">
+            <div class="flex items-center gap-2 mb-3">
+              <h4 class="font-semibold text-gray-900 dark:text-white">
+                ${new Date(group.schedule.date).toLocaleDateString('pt-BR', {
+                  weekday: 'long',
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric'
+                })}
+              </h4>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              ${group.responses.map(response => `
+                <div class="flex items-center justify-between p-3 rounded-lg ${
+                  response.type === 'confirmation' 
+                    ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
+                    : 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800'
+                }">
+                  <div class="flex items-center gap-2">
+                    ${response.type === 'confirmation' ? `
+                      <svg class="h-4 w-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                      </svg>
+                    ` : `
+                      <svg class="h-4 w-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                      </svg>
+                    `}
+                    <div>
+                      <p class="font-medium text-sm ${
+                        response.type === 'confirmation' 
+                          ? 'text-green-800 dark:text-green-200'
+                          : 'text-yellow-800 dark:text-yellow-200'
+                      }">
+                        ${response.musician}
+                      </p>
+                      <p class="text-xs ${
+                        response.type === 'confirmation' 
+                          ? 'text-green-600 dark:text-green-300'
+                          : 'text-yellow-600 dark:text-yellow-300'
+                      }">
+                        ${response.type === 'confirmation' ? 'Confirmou presença' : 'Solicitou troca'}
+                      </p>
+                      ${response.reason ? `
+                        <p class="text-xs ${
+                          response.type === 'confirmation' 
+                            ? 'text-green-600 dark:text-green-300'
+                            : 'text-yellow-600 dark:text-yellow-300'
+                        } mt-1">
+                          "${response.reason}"
+                        </p>
+                      ` : ''}
+                    </div>
+                  </div>
+                  <span class="text-xs ${
+                    response.type === 'confirmation' 
+                      ? 'text-green-500'
+                      : 'text-yellow-500'
+                  }">
+                    ${new Date(response.date).toLocaleTimeString('pt-BR', { 
+                      hour: '2-digit', 
+                      minute: '2-digit' 
+                    })}
+                  </span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `).join('');
+      }
+
+      getMusicianResponses() {
+        const responses = [];
+        
+        this.schedules.forEach(schedule => {
+          // Confirmações
+          if (schedule.confirmations) {
+            Object.entries(schedule.confirmations).forEach(([musician, confirmed]) => {
+              if (confirmed) {
+                responses.push({
+                  type: 'confirmation',
+                  musician,
+                  scheduleId: schedule.id,
+                  schedule,
+                  date: new Date().toISOString() // Idealmente seria a data real da confirmação
+                });
+              }
+            });
+          }
+          
+          // Solicitações de troca
+          if (schedule.changeRequests) {
+            schedule.changeRequests.forEach(request => {
+              responses.push({
+                type: 'changeRequest',
+                musician: request.musician,
+                reason: request.reason,
+                scheduleId: schedule.id,
+                schedule,
+                date: request.date
+              });
+            });
+          }
+        });
+        
+        // Ordenar por data mais recente primeiro
+        return responses.sort((a, b) => new Date(b.date) - new Date(a.date));
+      }
+      // DENTRO DA CLASSE EscalaSystem
+
+cancelEdit() {
+    // 1. Limpa a variável que guarda a escala em edição
+    this.editingSchedule = null;
+
+    // 2. Reseta todos os campos do formulário para seus valores padrão (mais eficiente)
+    const form = document.getElementById('escalaForm');
+    if (form) {
+        form.reset();
+    }
+
+    // 3. Limpa a lista de músicas temporárias que estavam no formulário
+    this.musicas = [];
+    this.renderMusicasContainer(); // Atualiza a UI para mostrar a lista de músicas vazia
+
+    // 4. (Opcional, mas boa prática de UX) Altera o texto do botão de volta para "Criar"
+    const submitBtnText = document.getElementById('submitBtnText');
+    if (submitBtnText) {
+        submitBtnText.textContent = 'Criar Escala';
+    }
+
+    // Esconde o botão "Cancelar Edição", se ele existir e estiver visível
+    const cancelBtn = document.getElementById('cancelarEdicaoBtn');
+    if (cancelBtn) {
+        cancelBtn.classList.add('hidden');
+    }
+}
+    }
     
-    document.addEventListener('DOMContentLoaded', function() {
-      escalaSystem = new EscalaSystem();
-      console.log('Sistema inicializado');
-    });
-</script>
+
+    // Initialize the system
+    const escalaSystem = new EscalaSystem();
+  </script>
 </body>
 </html>

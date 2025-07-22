@@ -1,4 +1,6 @@
 // routes/users.js
+console.log("✅ Arquivo routes/users.js FOI CARREGADO COM SUCESSO!");
+
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { PrismaClient } = require('@prisma/client');
@@ -8,109 +10,197 @@ const { checkAuth, checkAdmin } = require('../middleware/checkAuth');
 const router = express.Router();
 
 // =============================================================
-// ROTA 1: Obter todos os usuários (GET /)
-// CORREÇÃO: A consulta agora inclui a relação 'instruments'
-// para que o frontend receba os instrumentos de cada músico.
+// ROTA GET /api/users - Obter todos os usuários
+// CORRIGIDO: Agora busca e inclui os instrumentos de cada músico.
 // =============================================================
-router.get('/', checkAuth, async (req, res) => {
+router.get('/', [checkAuth, checkAdmin], async (req, res) => {
     try {
         const users = await prisma.user.findMany({
-            // 'include' é a chave para trazer os dados da tabela relacionada
+            orderBy: { name: 'asc' },
+            // Opcional: Filtra para trazer apenas usuários com o role 'musician'
+            where: {
+                role: 'musician'
+            },
+            // AQUI ESTÁ A REATIVAÇÃO: Inclui a lista de instrumentos de cada usuário
             include: {
-                instruments: true, // Isso trará um array de objetos de UserInstrument
+                instruments: true,
             }
         });
 
-        // Opcional mas recomendado: remover a senha antes de enviar
-        const safeUsers = users.map(user => {
+        // Remove a senha de todos os usuários antes de enviar a resposta
+        const usersWithoutPasswords = users.map(user => {
             const { password, ...userWithoutPassword } = user;
             return userWithoutPassword;
         });
 
-        res.status(200).json(safeUsers);
+        res.status(200).json(usersWithoutPasswords);
 
     } catch (error) {
         console.error("Erro ao buscar usuários:", error);
-        res.status(500).json({ message: 'Erro interno ao buscar a lista de usuários.' });
+        res.status(500).json({ message: 'Erro interno ao buscar a lista de usuários.', error: error.message });
     }
 });
 
 
 // =============================================================
-// ROTA 2: Cadastrar novo usuário (POST /)
-// CORREÇÃO: Esta é a correção principal. A rota agora lê o
-// array 'instruments' e usa uma transação para criar o usuário
-// e vincular seus instrumentos na tabela `UserInstrument`.
+// ROTA POST /api/users - Cadastrar novo usuário (músico)
+// Cria o usuário e associa seus instrumentos em MAIÚSCULAS.
 // =============================================================
 router.post('/', [checkAuth, checkAdmin], async (req, res) => {
-    // 1. Pegamos o array 'instruments' que o frontend envia
-    const { name, username, email, password, role, instruments } = req.body;
+    const { name, email, username, password, instruments = [] } = req.body;
 
-    // 2. Adicionamos a validação para o array de instrumentos
-    if (!name || !username || !email || !password || !Array.isArray(instruments) || instruments.length === 0) {
-        return res.status(400).json({ message: 'Nome, username, email, senha e pelo menos um instrumento são obrigatórios.' });
+    // Validação de entrada
+    if (!username || !password || !name || !email) {
+        return res.status(400).json({ message: 'Nome, email, usuário e senha são obrigatórios.' });
+    }
+    if (!Array.isArray(instruments) || instruments.length === 0) {
+        return res.status(400).json({ message: 'Pelo menos um instrumento deve ser selecionado.' });
     }
 
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
-        
-        // 3. Usamos uma transação para garantir que tudo aconteça ou nada aconteça.
+
+        // Usa uma transação para garantir a consistência dos dados
         const newUser = await prisma.$transaction(async (tx) => {
-            // Passo A: Criar o usuário
             const user = await tx.user.create({
                 data: {
                     name,
-                    username,
                     email,
+                    username,
                     password: hashedPassword,
-                    role: role || 'musician', 
+                    role: 'musician'
                 }
             });
 
-            // Passo B: Preparar os dados para a tabela de junção (UserInstrument)
-            const instrumentData = instruments.map(instrumentName => ({
-                userId: user.id,          // Vincula ao ID do usuário recém-criado
-                instrument: instrumentName, // O nome do instrumento (ex: "bateria")
+            // Garante que os instrumentos sejam salvos em MAIÚSCULAS
+            const instrumentData = instruments.map(inst => ({
+                userId: user.id,
+                instrument: inst.toUpperCase() 
             }));
 
-            // Passo C: Inserir todos os vínculos de instrumento de uma vez
             await tx.userInstrument.createMany({
-                data: instrumentData,
+                data: instrumentData
             });
 
-            return user; // A transação retorna o usuário criado
+            return user;
         });
-        
-        // Retornamos o usuário recém-criado (sem a senha) para o frontend.
-        const { password: _, ...userToReturn } = newUser;
-        res.status(201).json(userToReturn);
+
+        const { password: _, ...userWithoutPassword } = newUser;
+        res.status(201).json(userWithoutPassword);
 
     } catch (error) {
-        if (error.code === 'P2002') { // Erro de violação de chave única
-            return res.status(409).json({ message: 'Nome de usuário ou email já existe.' });
-        }
         console.error("Erro ao cadastrar usuário:", error);
-        res.status(500).json({ message: 'Erro ao cadastrar usuário.' });
+        
+        if (error.code === 'P2002') {
+            return res.status(409).json({ message: 'O e-mail ou nome de usuário fornecido já está em uso.' });
+        }
+        
+        res.status(500).json({ message: 'Erro interno ao cadastrar usuário.', error: error.message });
     }
 });
 
 
 // =============================================================
-// ROTA 3: Deletar usuário (DELETE /:id)
-// NENHUMA MUDANÇA NECESSÁRIA. A exclusão em cascata do Prisma já cuida disso.
+// ROTA DELETE /api/users/:id - Deletar um usuário
+// Converte o ID da URL para número antes de usar no Prisma.
 // =============================================================
 router.delete('/:id', [checkAuth, checkAdmin], async (req, res) => {
-    const { id } = req.params;
+    const userId = parseInt(req.params.id, 10);
+
+    if (isNaN(userId)) {
+        return res.status(400).json({ message: "ID de usuário inválido." });
+    }
+    
+    if (userId === req.userData.userId) {
+        return res.status(403).json({ message: "Não é permitido se auto-deletar." });
+    }
+
     try {
-        await prisma.user.delete({ where: { id: id } });
-        res.status(200).json({ message: 'Usuário deletado com sucesso.' });
+        await prisma.user.delete({
+            where: {
+              id: userId
+            }
+        });
+        res.status(204).send();
+
     } catch (error) {
-        if (error.code === 'P2025') {
-            return res.status(404).json({ message: 'Usuário não encontrado.' });
-        }
         console.error("Erro ao deletar usuário:", error);
-        res.status(500).json({ message: 'Erro ao deletar usuário.' });
+        
+        if (error.code === 'P2025') { 
+            return res.status(404).json({ message: "Usuário não encontrado." });
+        }
+        
+        res.status(500).json({ message: "Erro interno ao deletar usuário." });
     }
 });
 
+
+// ====================================================================
+// ====================================================================
+// ====================================================================
+// ROTA PUT /api/users/:id - Atualizar um músico (VERSÃO CORRIGIDA E ROBUSTA)
+// ====================================================================
+router.put('/:id', checkAuth, async (req, res) => {
+    const userId = parseInt(req.params.id, 10);
+    const { name, username, email, instruments, password } = req.body;
+
+    if (!name || !username || !email) {
+        return res.status(400).json({ message: 'Nome, usuário e email são obrigatórios.' });
+    }
+
+    try {
+        // Usar uma transação é a abordagem mais segura aqui.
+        const updatedUser = await prisma.$transaction(async (tx) => {
+            // 1. Deletar TODAS as relações de instrumentos existentes para este usuário.
+            //    Aqui usamos 'userInstrument' (camelCase), o nome correto do MODELO.
+            await tx.userInstrument.deleteMany({
+                where: {
+                    userId: userId,
+                },
+            });
+
+            // 2. Preparar os dados principais do usuário para a atualização.
+            const userDataToUpdate = {
+                name,
+                username,
+                email,
+            };
+
+            // 3. Se uma nova senha foi fornecida, faz o hash e a adiciona.
+            if (password) {
+                userDataToUpdate.password = await bcrypt.hash(password, 10);
+            }
+
+            // 4. Se novos instrumentos foram fornecidos, prepara-os para a criação.
+            //    Isso é feito através de uma escrita aninhada 'create'.
+            if (instruments && instruments.length > 0) {
+                userDataToUpdate.instruments = {
+                    create: instruments.map(instrumentName => ({
+                        instrument: instrumentName, // Ex: 'GUITARRA'
+                    })),
+                };
+            }
+
+            // 5. Atualiza o usuário e (re)cria suas relações com instrumentos em uma única chamada.
+            const user = await tx.user.update({
+                where: { id: userId },
+                data: userDataToUpdate,
+                include: {
+                    instruments: true, // Inclui os novos instrumentos na resposta
+                },
+            });
+
+            return user;
+        });
+
+        res.json(updatedUser);
+
+    } catch (error) {
+        console.error('Erro ao atualizar músico:', error);
+        if (error.code === 'P2025') { // Código do Prisma para "Registro não encontrado"
+            return res.status(404).json({ message: `Músico com ID ${userId} não encontrado.` });
+        }
+        res.status(500).json({ message: 'Erro interno ao atualizar músico.' });
+    }
+});
 module.exports = router;

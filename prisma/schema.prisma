@@ -9,38 +9,46 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ===================================
+// ENUMS
+// ===================================
 enum Role {
   admin
   musician
 }
 
+// CORRIGIDO: Padronizado para MAIÚSCULAS para corresponder ao que o frontend envia.
+// Isso resolve o erro "Invalid value for argument `instrument`".
 enum Instrument {
-  guitarra
-  baixo
-  teclado
-  violao
-  bateria
-  vocal
-  percussao
+  GUITARRA
+  BAIXO
+  TECLADO
+  VIOLAO
+  BATERIA
+  VOCAL
+  PERCUSSAO
 }
+
+
+// ===================================
+// MODELS
+// ===================================
 
 model User {
   id              Int                     @id @default(autoincrement())
   name            String
-  email           String                  @db.VarChar(191)
-  username        String                  @db.VarChar(191)
+  email           String                  @unique @db.VarChar(191)
+  username        String                  @unique @db.VarChar(191)
   password        String
   role            Role                    @default(musician)
   createdAt       DateTime                @default(now()) @map("created_at")
   updatedAt       DateTime                @updatedAt
-  
+
   participations  ScheduleParticipation[]
   confirmations   ScheduleConfirmation[]
   changeRequests  ScheduleChangeRequest[]
   instruments     UserInstrument[]
 
-  @@unique([email(100)])
-  @@unique([username(100)])
   @@map("users")
 }
 
@@ -50,19 +58,24 @@ model Schedule {
   cifras         String?                 @db.Text
   paletaCores    Json?                   @map("paleta_cores")
   createdAt      DateTime                @default(now()) @map("created_at")
+  
   participations ScheduleParticipation[]
   songs          ScheduleSong[]
   confirmations  ScheduleConfirmation[]
   changeRequests ScheduleChangeRequest[]
+
   @@map("schedules")
 }
 
 model ScheduleParticipation {
   scheduleId   Int        @map("schedule_id")
   userId       Int        @map("user_id")
-  instrument   Instrument
+  instrument   Instrument // Agora corresponde ao enum MAIÚSCULO
+
   schedule     Schedule   @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
   user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Usar @@id é correto para chaves primárias compostas.
   @@id([scheduleId, userId, instrument])
   @@map("schedule_participations")
 }
@@ -72,16 +85,21 @@ model ScheduleSong {
   scheduleId  Int        @map("schedule_id")
   songName    String     @map("song_name")
   youtubeLink String?    @map("youtube_link")
+  
   schedule    Schedule   @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
   @@map("schedule_songs")
 }
 
 model ScheduleConfirmation {
   scheduleId   Int      @map("schedule_id")
   userId       Int      @map("user_id")
+  
   schedule     Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  @@id([scheduleId, userId])
+
+  // É uma boa prática adicionar um índice único explícito para a lógica de upsert
+  @@unique([scheduleId, userId])
   @@map("schedule_confirmations")
 }
 
@@ -91,16 +109,22 @@ model ScheduleChangeRequest {
   userId       Int      @map("user_id")
   reason       String?  @db.Text
   requestDate  DateTime @default(now()) @map("request_date")
+  resolved     Boolean  @default(false)
+
   schedule     Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([scheduleId, userId])
   @@map("schedule_change_requests")
 }
 
 model UserInstrument {
   id         Int        @id @default(autoincrement())
   userId     Int
-  instrument Instrument
+  instrument Instrument // Agora corresponde ao enum MAIÚSCULO
+  
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([userId, instrument])
   @@map("user_instruments")
 }
