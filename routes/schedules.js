@@ -7,37 +7,46 @@ const { checkAuth, checkAdmin } = require('../middleware/checkAuth');
 
 const router = express.Router();
 
-/// ====================================================================
-// ROTA GET /api/schedules - CORRIGIDA
+// ====================================================================
+// ROTA GET /api/schedules - Buscar todas as escalas
 // ====================================================================
 router.get('/', checkAuth, async (req, res) => {
     try {
-        // Apenas buscamos os dados com todos os 'includes' necessários
+        // Buscamos os dados com todos os 'includes' necessários, incluindo dados do usuário
         const schedules = await prisma.schedule.findMany({
-            orderBy: { scheduleDate: 'desc' }, // ou 'asc', como preferir
+            orderBy: { scheduleDate: 'desc' },
             include: {
                 songs: true,
                 participations: {
                     include: {
                         user: {
-                            select: { id: true, name: true, username: true } 
+                            select: { id: true, name: true, username: true }
                         }
                     }
                 },
-                confirmations: true, // Pode precisar disso para outras lógicas
-                changeRequests: true // Pode precisar disso para outras lógicas
+                confirmations: {
+                    include: {
+                        user: {
+                            select: { id: true, name: true, username: true }
+                        }
+                    }
+                },
+                changeRequests: {
+                    include: {
+                        user: {
+                            select: { id: true, name: true, username: true }
+                        }
+                    }
+                }
             },
         });
-
-        // E enviamos os dados DIRETAMENTE, sem transformá-los.
+        // Enviamos os dados diretamente
         res.status(200).json(schedules);
-
     } catch (error) {
         console.error("Erro ao buscar escalas:", error);
         res.status(500).json({ message: 'Erro ao buscar escalas.', error: error.message });
     }
 });
-
 
 // ====================================================================
 // ROTA POST /api/schedules - Criar nova escala
@@ -62,7 +71,6 @@ router.post('/', [checkAuth, checkAdmin], async (req, res) => {
 
         console.log("PARTICIPAÇÕES VÁLIDAS PARA CRIAÇÃO:", JSON.stringify(validParticipations, null, 2));
 
-        // A CORREÇÃO ESTÁ AQUI
         const newSchedule = await prisma.schedule.create({
             data: {
                 scheduleDate: new Date(scheduleDate),
@@ -90,7 +98,6 @@ router.post('/', [checkAuth, checkAdmin], async (req, res) => {
     }
 });
 
-
 // ====================================================================
 // ROTA PUT /api/schedules/:id - Atualizar escala
 // ====================================================================
@@ -102,9 +109,10 @@ router.put('/:id', [checkAuth, checkAdmin], async (req, res) => {
 
     try {
         const updatedSchedule = await prisma.$transaction(async (tx) => {
+            // Delete existing related records before creating new ones to avoid duplicates
             await tx.scheduleParticipation.deleteMany({ where: { scheduleId } });
             await tx.scheduleSong.deleteMany({ where: { scheduleId } });
-            
+
             const validParticipations = rawParticipations.filter(p => p.userId).map(p => ({
                 userId: parseInt(p.userId, 10),
                 instrument: p.instrument
@@ -134,7 +142,6 @@ router.put('/:id', [checkAuth, checkAdmin], async (req, res) => {
     }
 });
 
-
 // ====================================================================
 // ROTA DELETE /api/schedules/:id - Deletar escala
 // ====================================================================
@@ -144,14 +151,15 @@ router.delete('/:id', [checkAuth, checkAdmin], async (req, res) => {
 
     try {
         await prisma.schedule.delete({ where: { id: scheduleId } });
-        res.status(204).send();
+        res.status(204).send(); // No content to send back after successful deletion
     } catch (error) {
         console.error("Erro ao deletar escala:", error);
-        if (error.code === 'P2025') return res.status(404).json({ message: "Escala não encontrada." });
+        if (error.code === 'P2025') {
+            return res.status(404).json({ message: "Escala não encontrada." });
+        }
         res.status(500).json({ message: "Erro interno ao deletar a escala." });
     }
 });
-
 
 // ====================================================================
 // ROTA POST /api/schedules/:id/confirm - Músico confirma presença
@@ -159,12 +167,12 @@ router.delete('/:id', [checkAuth, checkAdmin], async (req, res) => {
 router.post('/:id/confirm', checkAuth, async (req, res) => {
     const scheduleId = parseInt(req.params.id, 10);
     if (isNaN(scheduleId)) return res.status(400).json({ message: "ID da escala inválido." });
-    
-    const userId = req.userData.userId;
+
+    const userId = req.userData.userId; // Assuming userId is available from checkAuth middleware
     try {
         await prisma.scheduleConfirmation.upsert({
             where: { scheduleId_userId: { scheduleId, userId } },
-            update: {},
+            update: {}, // No specific update needed if record exists, just ensure it's there
             create: { scheduleId, userId },
         });
         res.status(200).json({ message: 'Presença confirmada!' });
@@ -174,22 +182,23 @@ router.post('/:id/confirm', checkAuth, async (req, res) => {
     }
 });
 
-
 // ====================================================================
 // ROTA POST /api/schedules/:id/request-change - Músico solicita troca
 // ====================================================================
 router.post('/:id/request-change', checkAuth, async (req, res) => {
     const scheduleId = parseInt(req.params.id, 10);
     if (isNaN(scheduleId)) return res.status(400).json({ message: "ID da escala inválido." });
-    
-    const { reason } = req.body;
-    if (!reason?.trim()) return res.status(400).json({ message: "O motivo é obrigatório." });
 
-    const userId = req.userData.userId;
+    const { reason } = req.body;
+    if (!reason?.trim()) {
+        return res.status(400).json({ message: "O motivo é obrigatório." });
+    }
+
+    const userId = req.userData.userId; // Assuming userId is available from checkAuth middleware
     try {
         await prisma.scheduleChangeRequest.upsert({
             where: { scheduleId_userId: { scheduleId, userId } },
-            update: { reason: reason.trim(), resolved: false },
+            update: { reason: reason.trim(), resolved: false }, // Update reason and set resolved to false
             create: { scheduleId, userId, reason: reason.trim() }
         });
         res.status(200).json({ message: 'Solicitação de troca enviada!' });

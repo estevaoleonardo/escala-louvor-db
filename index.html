@@ -1459,7 +1459,7 @@ renderSchedules(searchTerm = '') {
     if (searchTerm) {
         // Esta parte do filtro pode dar erro se 'schedule.date' não existir mais.
         // Vamos comentar por enquanto para garantir que não interfira no teste.
-        /*
+        
         filteredSchedules = this.schedules.filter(schedule =>
             schedule.date.includes(searchTerm) ||
             (schedule.musicas && schedule.musicas.some(m => m.nome.toLowerCase().includes(searchTerm.toLowerCase()))) ||
@@ -1467,7 +1467,7 @@ renderSchedules(searchTerm = '') {
                 typeof value === 'string' && value.toLowerCase().includes(searchTerm.toLowerCase())
             )
         );
-        */
+        
     }
 
     console.log('Renderizando escalas:', filteredSchedules.length, 'de', this.schedules.length);
@@ -1570,23 +1570,35 @@ renderMusicianSchedules(searchTerm = '') {
     container.innerHTML = musicianSchedules.map(schedule => this.renderMusicianScheduleCard(schedule)).join('');
 }
 
-      getMusicianInstruments(schedule, musicianName) {
-        const instruments = [];
-        if (schedule.bateria === musicianName) instruments.push('Bateria');
-        if (schedule.baixo === musicianName) instruments.push('Baixo');
-        if (schedule.teclado === musicianName) instruments.push('Teclado');
-        if (schedule.violao === musicianName) instruments.push('Violão');
-        if (schedule.guitarra === musicianName) instruments.push('Guitarra');
-        if (schedule.percussao === musicianName) instruments.push('Percussão');
-        if (schedule.vocal1 === musicianName) instruments.push('Vocal 1');
-        if (schedule.vocal2 === musicianName) instruments.push('Vocal 2');
-        if (schedule.vocal3 === musicianName) instruments.push('Vocal 3');
-        if (schedule.vocal4 === musicianName) instruments.push('Vocal 4');
-        if (schedule.vocal5 === musicianName) instruments.push('Vocal 5');
-        if (schedule.vocal6 === musicianName) instruments.push('Vocal 6');
-        return instruments;
-      }
+getMusicianInstruments(schedule, musicianId) {
+    const instruments = [];
+    const participations = schedule.participations || [];
+    
+    participations.forEach(participation => {
+        // Converte ambos para número para garantir comparação correta
+        if (parseInt(participation.userId, 10) === parseInt(musicianId, 10)) {
+            // Adiciona o nome "amigável" do instrumento
+            const instrumentName = this.getFriendlyInstrumentName(participation.instrument);
+            instruments.push(instrumentName);
+        }
+    });
+    
+    return instruments;
+}
 
+// Adicione também esta função auxiliar para formatar os nomes dos instrumentos
+getFriendlyInstrumentName(instrumentEnum) {
+    const friendlyNames = {
+        'BATERIA': 'Bateria',
+        'BAIXO': 'Baixo',
+        'TECLADO': 'Teclado',
+        'VIOLAO': 'Violão',
+        'GUITARRA': 'Guitarra',
+        'PERCUSSAO': 'Percussão',
+        'VOCAL': 'Vocal'
+    };
+    return friendlyNames[instrumentEnum] || instrumentEnum;
+}
 
 
 // SUBSTITUA A SUA FUNÇÃO ANTIGA POR ESTA
@@ -2081,43 +2093,58 @@ renderMusicianScheduleCard(schedule) {
         `).join('');
       }
 
-      getMusicianResponses() {
-        const responses = [];
-        
-        this.schedules.forEach(schedule => {
-          // Confirmações
-          if (schedule.confirmations) {
-            Object.entries(schedule.confirmations).forEach(([musician, confirmed]) => {
-              if (confirmed) {
-                responses.push({
-                  type: 'confirmation',
-                  musician,
-                  scheduleId: schedule.id,
-                  schedule,
-                  date: new Date().toISOString() // Idealmente seria a data real da confirmação
-                });
-              }
+// DENTRO DA CLASSE EscalaSystem
+
+getMusicianResponses() {
+    const responses = [];
+    
+    this.schedules.forEach(schedule => {
+        // Processa Confirmações (agora é um ARRAY de objetos)
+        if (schedule.confirmations && Array.isArray(schedule.confirmations)) {
+            schedule.confirmations.forEach(confirmation => {
+                // Encontra o usuário correspondente no array this.users
+                const confirmedUser = this.users.find(u => u.id === parseInt(confirmation.userId, 10));
+                
+                if (confirmedUser) { // Apenas se o usuário for encontrado
+                    responses.push({
+                        type: 'confirmation',
+                        musician: confirmedUser.name || confirmedUser.username, // Nome do músico
+                        scheduleId: schedule.id,
+                        schedule: schedule, // Passa o objeto schedule completo
+                        date: confirmation.confirmedAt || new Date().toISOString() // Use 'confirmedAt' do modelo Prisma se existir, senão new Date()
+                    });
+                }
             });
-          }
-          
-          // Solicitações de troca
-          if (schedule.changeRequests) {
+        }
+        
+        // Processa Solicitações de Troca (já é um ARRAY de objetos)
+        if (schedule.changeRequests && Array.isArray(schedule.changeRequests)) {
             schedule.changeRequests.forEach(request => {
-              responses.push({
-                type: 'changeRequest',
-                musician: request.musician,
-                reason: request.reason,
-                scheduleId: schedule.id,
-                schedule,
-                date: request.date
-              });
+                // Encontra o usuário correspondente no array this.users
+                const requestedUser = this.users.find(u => u.id === parseInt(request.userId, 10));
+
+                if (requestedUser) { // Apenas se o usuário for encontrado
+                    responses.push({
+                        type: 'changeRequest',
+                        musician: requestedUser.name || requestedUser.username, // Nome do músico
+                        reason: request.reason,
+                        scheduleId: schedule.id,
+                        schedule: schedule, // Passa o objeto schedule completo
+                        date: request.requestDate, // Use 'requestDate' do modelo Prisma
+                        resolved: request.resolved // Incluir o status de resolvido
+                    });
+                }
             });
-          }
-        });
-        
-        // Ordenar por data mais recente primeiro
-        return responses.sort((a, b) => new Date(b.date) - new Date(a.date));
-      }
+        }
+    });
+    
+    // Ordenar por data mais recente primeiro
+    return responses.sort((a, b) => new Date(b.date) - new Date(a.date));
+}
+
+// E na sua renderMusicianResponses(), você pode usar o `response.resolved`
+// para mostrar o status ou um botão de "Marcar como Resolvida"
+// (A lógica de renderização para o admin já estava boa, mas a fonte de dados precisava ser corrigida)
       // DENTRO DA CLASSE EscalaSystem
 
 cancelEdit() {
