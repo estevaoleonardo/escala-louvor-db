@@ -1239,7 +1239,23 @@ editSchedule(scheduleId) {
           }
         }
       }
+async removeConfirmation(scheduleId, userId) {
+    if (!confirm(`Tem certeza que deseja REMOVER a confirmação de presença de ${this.users.find(u => u.id === userId)?.name || 'este músico'}?`)) {
+        return;
+    }
 
+    try {
+        // --- CORREÇÃO: Adiciona o userId como query parameter na URL ---
+        await this.apiFetch(`/schedules/${scheduleId}/confirm?userId=${userId}`, {
+            method: 'DELETE'
+        });
+        this.showToast('Confirmação removida com sucesso!', 'success');
+        await this.loadDataFromAPI();
+        this.renderMusicianResponses();
+    } catch (error) {
+        this.showToast(error.message, 'error');
+    }
+}
       async resolveChangeRequest(scheduleId, musicianName) {
         if (confirm(`Marcar solicitação de troca de ${musicianName} como resolvida?`)) {
           try {
@@ -1714,55 +1730,9 @@ renderScheduleCard(schedule, showActions) {
         return schedule.confirmations && schedule.confirmations[musicianName] === true;
       }
 
-      confirmSchedule(scheduleId, musicianName) {
-        const schedule = this.schedules.find(s => s.id == scheduleId);
-        if (schedule) {
-          if (!schedule.confirmations) {
-            schedule.confirmations = {};
-          }
-          schedule.confirmations[musicianName] = true;
-          this.showToast('Presença confirmada com sucesso!', 'success');
-          this.renderMusicianSchedules();
-          if (this.currentUser.role === 'admin') {
-            this.renderSchedules();
-            this.renderMusicianResponses();
-          }
-        }
-      }
+     
 
-      requestChange(scheduleId, musicianName) {
-        const schedule = this.schedules.find(s => s.id == scheduleId);
-        if (schedule) {
-          const reason = prompt('Por favor, informe o motivo da solicitação de troca:');
-          if (reason && reason.trim()) {
-            if (!schedule.changeRequests) {
-              schedule.changeRequests = [];
-            }
-            
-            // Check if musician already requested a change
-            const existingRequest = schedule.changeRequests.find(req => req.musician === musicianName);
-            if (existingRequest) {
-              existingRequest.reason = reason.trim();
-              existingRequest.date = new Date().toISOString();
-              this.showToast('Solicitação de troca atualizada!', 'success');
-            } else {
-              schedule.changeRequests.push({
-                musician: musicianName,
-                reason: reason.trim(),
-                date: new Date().toISOString(),
-                status: 'pending'
-              });
-              this.showToast('Solicitação de troca enviada!', 'success');
-            }
-            
-            this.renderMusicianSchedules();
-            if (this.currentUser.role === 'admin') {
-              this.renderSchedules();
-              this.renderMusicianResponses();
-            }
-          }
-        }
-      }
+  
 
       resolveChangeRequest(scheduleId, musicianName) {
         const schedule = this.schedules.find(s => s.id == scheduleId);
@@ -1991,107 +1961,112 @@ renderMusicianScheduleCard(schedule) {
         this.showToast('Funcionalidade de PDF em desenvolvimento', 'info');
       }
 
-      renderMusicianResponses() {
-        const container = document.getElementById('musicianResponsesList');
-        if (!container) return;
+renderMusicianResponses() {
+    const container = document.getElementById('musicianResponsesList');
+    if (!container) return;
 
-        const responses = this.getMusicianResponses();
+    const responses = this.getMusicianResponses();
 
-        if (responses.length === 0) {
-          container.innerHTML = `
+    if (responses.length === 0) {
+        container.innerHTML = `
             <div class="flex flex-col items-center justify-center py-8 text-center">
-              <svg class="h-12 w-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-              </svg>
-              <p class="text-gray-500 dark:text-gray-400 text-sm">Nenhuma resposta dos músicos ainda</p>
+                <svg class="h-12 w-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <p class="text-gray-500 dark:text-gray-400 text-sm">Nenhuma resposta dos músicos ainda</p>
             </div>
-          `;
-          return;
-        }
+        `;
+        return;
+    }
 
-        const groupedBySchedule = {};
-        responses.forEach(response => {
-          if (!groupedBySchedule[response.scheduleId]) {
+    const groupedBySchedule = {};
+    responses.forEach(response => {
+        if (!groupedBySchedule[response.scheduleId]) {
             groupedBySchedule[response.scheduleId] = {
-              schedule: response.schedule,
-              responses: []
+                schedule: response.schedule,
+                responses: []
             };
-          }
-          groupedBySchedule[response.scheduleId].responses.push(response);
-        });
+        }
+        groupedBySchedule[response.scheduleId].responses.push(response);
+    });
 
-        container.innerHTML = Object.values(groupedBySchedule).map(group => `
-          <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-4">
+    container.innerHTML = Object.values(groupedBySchedule).map(group => `
+        <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-4">
             <div class="flex items-center gap-2 mb-3">
-              <h4 class="font-semibold text-gray-900 dark:text-white">
-                ${new Date(group.schedule.date).toLocaleDateString('pt-BR', {
-                  weekday: 'long',
-                  day: 'numeric',
-                  month: 'long',
-                  year: 'numeric'
-                })}
-              </h4>
-            </div>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              ${group.responses.map(response => `
-                <div class="flex items-center justify-between p-3 rounded-lg ${
-                  response.type === 'confirmation' 
-                    ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
-                    : 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800'
-                }">
-                  <div class="flex items-center gap-2">
-                    ${response.type === 'confirmation' ? `
-                      <svg class="h-4 w-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                      </svg>
-                    ` : `
-                      <svg class="h-4 w-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
-                      </svg>
-                    `}
-                    <div>
-                      <p class="font-medium text-sm ${
-                        response.type === 'confirmation' 
-                          ? 'text-green-800 dark:text-green-200'
-                          : 'text-yellow-800 dark:text-yellow-200'
-                      }">
-                        ${response.musician}
-                      </p>
-                      <p class="text-xs ${
-                        response.type === 'confirmation' 
-                          ? 'text-green-600 dark:text-green-300'
-                          : 'text-yellow-600 dark:text-yellow-300'
-                      }">
-                        ${response.type === 'confirmation' ? 'Confirmou presença' : 'Solicitou troca'}
-                      </p>
-                      ${response.reason ? `
-                        <p class="text-xs ${
-                          response.type === 'confirmation' 
-                            ? 'text-green-600 dark:text-green-300'
-                            : 'text-yellow-600 dark:text-yellow-300'
-                        } mt-1">
-                          "${response.reason}"
-                        </p>
-                      ` : ''}
-                    </div>
-                  </div>
-                  <span class="text-xs ${
-                    response.type === 'confirmation' 
-                      ? 'text-green-500'
-                      : 'text-yellow-500'
-                  }">
-                    ${new Date(response.date).toLocaleTimeString('pt-BR', { 
-                      hour: '2-digit', 
-                      minute: '2-digit' 
+                <h4 class="font-semibold text-gray-900 dark:text-white">
+                    ${new Date(group.schedule.scheduleDate).toLocaleDateString('pt-BR', {
+                        weekday: 'long',
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric'
                     })}
-                  </span>
-                </div>
-              `).join('')}
+                </h4>
             </div>
-          </div>
-        `).join('');
-      }
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                ${group.responses.map(response => `
+                    <div class="flex items-center justify-between p-3 rounded-lg ${
+                        response.type === 'confirmation' 
+                            ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
+                            : 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800'
+                    }">
+                        <div class="flex items-center gap-2">
+                            ${response.type === 'confirmation' ? `
+                                <svg class="h-4 w-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                            ` : `
+                                <svg class="h-4 w-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                                </svg>
+                            `}
+                            <div>
+                                <p class="font-medium text-sm ${
+                                    response.type === 'confirmation' 
+                                        ? 'text-green-800 dark:text-green-200'
+                                        : 'text-yellow-800 dark:text-yellow-200'
+                                }">
+                                    ${response.musician}
+                                </p>
+                                <p class="text-xs ${
+                                    response.type === 'confirmation' 
+                                        ? 'text-green-600 dark:text-green-300'
+                                        : 'text-yellow-600 dark:text-yellow-300'
+                                }">
+                                    ${response.type === 'confirmation' ? 'Confirmou presença' : 'Solicitou troca'}
+                                </p>
+                                ${response.reason ? `
+                                    <p class="text-xs ${
+                                        response.type === 'confirmation' 
+                                            ? 'text-green-600 dark:text-green-300'
+                                            : 'text-yellow-600 dark:text-yellow-300'
+                                    } mt-1">
+                                        "${response.reason}"
+                                    </p>
+                                ` : ''}
+                            </div>
+                        </div>
+                        <span class="text-xs ${
+                            response.type === 'confirmation' 
+                                ? 'text-green-500'
+                                : 'text-yellow-500'
+                        }">
+                            ${new Date(response.date).toLocaleTimeString('pt-BR', { 
+                                hour: '2-digit', 
+                                minute: '2-digit' 
+                            })}
+                        </span>
+                        ${response.type === 'confirmation' ? `
+                            <button onclick="escalaSystem.removeConfirmation(${response.scheduleId}, ${response.userId})" 
+                                class="ml-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 text-xs">
+                                X
+                            </button>
+                        ` : ''}
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `).join('');
+}
 
 // DENTRO DA CLASSE EscalaSystem
 

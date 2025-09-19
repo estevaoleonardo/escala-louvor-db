@@ -208,4 +208,57 @@ router.post('/:id/request-change', checkAuth, async (req, res) => {
     }
 });
 
+// ====================================================================
+// ROTA DELETE /api/schedules/:id/confirm - Remover confirmação de presença
+// ====================================================================
+router.delete('/:id/confirm', checkAuth, async (req, res) => {
+    const scheduleId = parseInt(req.params.id, 10);
+    if (isNaN(scheduleId)) return res.status(400).json({ message: "ID da escala inválido." });
+
+    const userId = req.userData.userId;
+    const userRole = req.userData.role;
+
+    try {
+        // Busca a confirmação para saber quem a fez
+        const confirmation = await prisma.scheduleConfirmation.findFirst({
+            where: {
+                scheduleId: scheduleId,
+                userId: userId // Tenta encontrar a confirmação do usuário logado
+            }
+        });
+
+        // Se o usuário não for admin e não for o dono da confirmação, nega a exclusão
+        if (userRole !== 'admin' && !confirmation) {
+            return res.status(403).json({ message: 'Você não tem permissão para excluir esta confirmação.' });
+        }
+
+        // Se for admin, busca o userId da confirmação que está sendo excluída
+        let targetUserId = userId;
+        if (userRole === 'admin') {
+            // O frontend precisa enviar o userId da confirmação como query parameter
+            targetUserId = parseInt(req.query.userId, 10);
+            if (isNaN(targetUserId)) {
+                return res.status(400).json({ message: "ID do músico inválido." });
+            }
+        }
+
+        // Exclui a confirmação
+        const result = await prisma.scheduleConfirmation.deleteMany({
+            where: {
+                scheduleId: scheduleId,
+                userId: targetUserId
+            }
+        });
+
+        if (result.count === 0) {
+            return res.status(404).json({ message: 'Confirmação não encontrada.' });
+        }
+
+        res.status(200).json({ message: 'Confirmação removida com sucesso!' });
+    } catch (error) {
+        console.error("Erro ao excluir confirmação:", error);
+        res.status(500).json({ message: 'Erro ao excluir confirmação.', error: error.message });
+    }
+});
+
 module.exports = router;
