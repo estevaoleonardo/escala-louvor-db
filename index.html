@@ -650,42 +650,32 @@
     class EscalaSystem {
       // --- Propriedades da Classe ---
       API_URL = 'http://localhost:3000/api'; // URL do seu backend
-      
       // Armazenam os dados vindos da API
       users = [];
       schedules = [];
-
       // Controlam o estado da aplicação
       currentUser = null;
       editingSchedule = null;
       musicas = []; // Array temporário para as músicas do formulário
-
       constructor() {
         this.init(); // Inicia o sistema
       }
-
       // --- Métodos de Requisição à API (Fetch) ---
-      
       // Um helper para fazer requisições fetch, já configurando o token
       async apiFetch(endpoint, options = {}) {
         const token = localStorage.getItem('authToken');
-        
         const headers = {
           'Content-Type': 'application/json',
           ...options.headers,
         };
-
         if (token) {
           headers['Authorization'] = `Bearer ${token}`;
         }
-
         const response = await fetch(`${this.API_URL}${endpoint}`, { ...options, headers });
-
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ message: response.statusText }));
           throw new Error(errorData.message || 'Ocorreu um erro na requisição.');
         }
-
         // Retorna a resposta JSON se houver corpo, senão retorna a resposta crua
         const contentType = response.headers.get("content-type");
         if (contentType && contentType.indexOf("application/json") !== -1) {
@@ -693,91 +683,80 @@
         }
         return response;
       }
-
       // Carrega todos os dados iniciais da API
-       async loadDataFromAPI() {
-        try {
-          this.schedules = await this.apiFetch('/schedules');
-          
-          // --- ADICIONE ESTA LINHA PARA O TESTE FINAL ---
-          console.log('DADOS RECEBIDOS DA API:', JSON.stringify(this.schedules, null, 2));
-
-          if (this.currentUser.role === 'admin') {
-            this.users = await this.apiFetch('/users'); 
-          }
-          
-          this.showToast('Dados sincronizados com o servidor!', 'success');
-        } catch (error) {
-          this.showToast(`Erro ao carregar dados: ${error.message}`, 'error');
-          if (error.message.includes('Autenticação falhou')) {
-            this.logout();
-          }
+async loadDataFromAPI() {
+    try {
+        // --- PRIMEIRO: Carrega os usuários (se for admin) ---
+        if (this.currentUser.role === 'admin') {
+            this.users = await this.apiFetch('/users');
+            console.log('USUÁRIOS CARREGADOS:', this.users.length);
         }
-      }
-
+        // --- DEPOIS: Carrega as escalas ---
+        this.schedules = await this.apiFetch('/schedules');
+        console.log('ESCALAS CARREGADAS:', this.schedules.length);
+        this.showToast('Dados sincronizados com o servidor!', 'success');
+        // --- RENDERIZA AS RESPOSTAS APÓS TUDO ESTAR CARREGADO ---
+        if (this.currentUser.role === 'admin') {
+            this.renderMusicianResponses(); // ← MOVIDO PARA DENTRO DO IF
+            this.renderSchedules(); // <-- ADICIONADO PARA CONSISTÊNCIA
+        }
+    } catch (error) {
+        this.showToast(`Erro ao carregar dados: ${error.message}`, 'error');
+        if (error.message.includes('Autenticação falhou')) {
+            this.logout();
+        }
+    }
+}
       // --- Lógica Principal da Aplicação ---
-
       init() {
         this.initializeEventListeners();
         this.initializeTheme();
       }
-      
       initializeEventListeners() {
         // Login form
         document.getElementById('loginForm').addEventListener('submit', (e) => this.handleLogin(e));
-        
         // Theme toggles
         document.getElementById('themeToggle').addEventListener('click', () => this.toggleTheme());
         document.getElementById('adminThemeToggle')?.addEventListener('click', () => this.toggleTheme());
         document.getElementById('musicianThemeToggle')?.addEventListener('click', () => this.toggleTheme());
-        
         // Logout buttons
         document.getElementById('logoutBtnAdmin')?.addEventListener('click', () => this.logout());
         document.getElementById('logoutBtnMusician')?.addEventListener('click', () => this.logout());
-        
         // Admin specific
         document.getElementById('cadastrarMusicoBtn')?.addEventListener('click', () => this.showMusicianRegistration());
         document.getElementById('consultarMusicoBtn')?.addEventListener('click', () => this.showMusicianConsultation());
         document.getElementById('escalaForm')?.addEventListener('submit', (e) => this.handleScheduleSubmit(e));
         document.getElementById('cancelarEdicaoBtn')?.addEventListener('click', () => this.cancelEdit());
         document.getElementById('limparEscalasBtn')?.addEventListener('click', () => this.clearSchedules());
-        
         // Musician registration modal
         document.getElementById('formCadastroMusico')?.addEventListener('submit', (e) => this.handleMusicianRegistration(e));
         document.getElementById('cancelarCadastroBtn')?.addEventListener('click', () => this.hideMusicianRegistration());
-        
         // Musician consultation modal
         document.getElementById('fecharConsultaBtn')?.addEventListener('click', () => this.hideMusicianConsultation());
         document.getElementById('buscaMusico')?.addEventListener('input', (e) => this.filterMusicians(e.target.value));
-        
         // Password change modal
         document.getElementById('changePasswordBtn')?.addEventListener('click', () => this.showChangePasswordModal());
         document.getElementById('musicianChangePasswordBtn')?.addEventListener('click', () => this.showChangePasswordModal());
         document.getElementById('formAlterarSenha')?.addEventListener('submit', (e) => this.handlePasswordChange(e));
         document.getElementById('cancelarAlteracaoSenhaBtn')?.addEventListener('click', () => this.hideChangePasswordModal());
-        
         // Music management
         document.getElementById('adicionarMusicaBtn')?.addEventListener('click', () => this.showAddMusicModal());
         document.getElementById('formAdicionarMusica')?.addEventListener('submit', (e) => this.handleAddMusic(e));
         document.getElementById('cancelarMusicaBtn')?.addEventListener('click', () => this.hideAddMusicModal());
-        
         // Search filters
         document.getElementById('filtroBusca')?.addEventListener('input', (e) => this.filterSchedules(e.target.value));
         document.getElementById('musicianSearchInput')?.addEventListener('input', (e) => this.filterMusicianSchedules(e.target.value));
       }
-
       initializeTheme() {
         const isDark = localStorage.getItem('theme') === 'dark';
         if (isDark) {
           document.documentElement.classList.add('dark');
         }
       }
-
       toggleTheme() {
         const isDark = document.documentElement.classList.toggle('dark');
         localStorage.setItem('theme', isDark ? 'dark' : 'light');
       }
-
       showToast(message, type = 'info') {
         const toast = document.createElement('div');
         toast.className = `fixed top-4 right-4 p-4 rounded-md shadow-lg z-50 ${
@@ -787,37 +766,30 @@
         }`;
         toast.textContent = message;
         document.body.appendChild(toast);
-        
         setTimeout(() => {
           toast.remove();
         }, 3000);
       }
       // Adicione esta nova função à sua classe EscalaSystem
-
 showEditMusicianModal(musicianId) {
     const musician = this.users.find(u => u.id === musicianId);
     if (!musician) {
         this.showToast('Erro: Músico não encontrado.', 'error');
         return;
     }
-
     // Guarda o músico que está sendo editado
     this.editingMusician = musician;
-
     // Preenche o formulário de cadastro com os dados do músico
     document.getElementById('novoNome').value = musician.name || '';
     document.getElementById('novoUsuario').value = musician.username || '';
     document.getElementById('novoEmail').value = musician.email || '';
-
     // Deixa os campos de senha em branco por segurança
     document.getElementById('novaSenha').value = '';
-    
     // Marca os checkboxes dos instrumentos que o músico já toca
     const allInstrumentCheckboxes = ['instBateria', 'instBaixo', 'instTeclado', 'instViolao', 'instGuitarra', 'instPercussao', 'instVocal'];
     allInstrumentCheckboxes.forEach(id => {
         document.getElementById(id).checked = false;
     });
-
     if (musician.instruments) {
         musician.instruments.forEach(instObj => {
             // Constrói o ID do checkbox a partir do nome do instrumento (ex: BATERIA -> instBateria)
@@ -828,42 +800,34 @@ showEditMusicianModal(musicianId) {
             }
         });
     }
-
     // Adapta a UI do modal para o modo de edição
     document.getElementById('modalTitle').textContent = 'Editar Músico';
     document.getElementById('submitMusicianBtn').textContent = 'Salvar Alterações';
-
+    this.hideMusicianConsultation();
     // Mostra o modal de cadastro
     this.showMusicianRegistration();
 }
-      
       // --- Métodos Refatorados com API ---
-
       async handleLogin(e) {
         e.preventDefault();
         const userType = document.getElementById('tipoUsuario').value;
         const username = document.getElementById('username').value;
         const password = document.getElementById('password').value;
-
         try {
           const data = await this.apiFetch('/auth/login', {
             method: 'POST',
             body: JSON.stringify({ username, password, role: userType })
           });
-          
           localStorage.setItem('authToken', data.token);
           this.currentUser = data.user;
-          
           await this.showApp(data.user.role);
         } catch (error) {
           this.showToast(error.message, 'error');
         }
       }
-
       async showApp(userType) {
         document.getElementById('loginScreen').classList.add('hidden');
         await this.loadDataFromAPI();
-        
         if (userType === 'admin') {
           document.getElementById('adminApp').classList.remove('hidden');
           this.populateMusiciansInSelects();
@@ -875,7 +839,6 @@ showEditMusicianModal(musicianId) {
           this.renderMusicianSchedules();
         }
       }
-
       logout() {
         this.currentUser = null;
         this.users = [];
@@ -886,17 +849,14 @@ showEditMusicianModal(musicianId) {
         document.getElementById('musicianApp').classList.add('hidden');
         document.getElementById('loginForm').reset();
       }
-
       // Este método está CORRETO e não precisa de alterações, pois envia os dados no formato que o backend espera.
      // Substitua sua função handleMusicianRegistration por esta versão mais inteligente
-
 async handleMusicianRegistration(e) {
     e.preventDefault();
     const name = document.getElementById('novoNome').value.trim();
     const username = document.getElementById('novoUsuario').value.trim();
     const email = document.getElementById('novoEmail').value.trim();
     const password = document.getElementById('novaSenha').value.trim();
-    
     const instruments = [];
     const checkboxes = ['instBateria', 'instBaixo', 'instTeclado', 'instViolao', 'instGuitarra', 'instPercussao', 'instVocal'];
     checkboxes.forEach(checkboxId => {
@@ -905,7 +865,6 @@ async handleMusicianRegistration(e) {
             instruments.push(checkbox.value.toUpperCase());
         }
     });
-
     if (!this.editingMusician && !password) {
         this.showToast('A senha é obrigatória para novos cadastros.', 'error');
         return;
@@ -914,10 +873,8 @@ async handleMusicianRegistration(e) {
         this.showToast('Selecione pelo menos um instrumento.', 'error');
         return;
     }
-
     try {
         let endpoint, method, successMessage, body;
-        
         // Decide se é uma CRIAÇÃO (POST) ou ATUALIZAÇÃO (PUT)
         if (this.editingMusician) {
             method = 'PUT';
@@ -931,53 +888,42 @@ async handleMusicianRegistration(e) {
             successMessage = 'Músico cadastrado com sucesso!';
             body = { name, username, email, password, instruments };
         }
-        
         await this.apiFetch(endpoint, {
             method: method,
             body: JSON.stringify(body)
         });
-        
         this.showToast(successMessage, 'success');
         this.hideMusicianRegistration();
-        
         // Recarrega os dados para a UI ficar atualizada
         this.users = await this.apiFetch('/users');
         this.populateMusiciansInSelects();
         this.renderMusicians();
-
     } catch (error) {
         this.showToast(error.message, 'error');
     }
 }
 // DENTRO DA CLASSE EscalaSystem
-
 async deleteMusician(musicianId) {
   // Converte o ID recebido (que pode ser string) para número
   const numericId = parseInt(musicianId, 10);
-
   // Encontra o músico no array usando o ID numérico
   const musician = this.users.find(u => u.id === numericId);
-
   // VERIFICAÇÃO DE SEGURANÇA: Se o músico não for encontrado, exibe um erro e para.
   if (!musician) {
     this.showToast('Erro: Músico não encontrado para exclusão.', 'error');
     console.error(`Tentativa de excluir músico com ID ${musicianId} que não foi encontrado no array this.users.`);
     return;
   }
-
   // Agora, como temos certeza que 'musician' existe, esta linha é segura.
   if (confirm(`Tem certeza que deseja excluir o músico ${musician.name || musician.username}?`)) {
     try {
       // A API geralmente aceita o ID como string, então não precisa mudar aqui.
       await this.apiFetch(`/users/${musicianId}`, { method: 'DELETE' });
-      
       this.showToast('Músico removido com sucesso!', 'success');
-      
       // Recarrega os dados para atualizar a interface
       this.users = await this.apiFetch('/users');
       this.populateMusiciansInSelects();
       this.renderMusicians(); // Re-renderiza a lista de músicos na consulta
-
     } catch (error) {
       this.showToast(error.message, 'error');
     }
@@ -990,28 +936,23 @@ editSchedule(scheduleId) {
         this.showToast('Erro: Não foi possível encontrar a escala para edição.', 'error');
         return;
     }
-
     // 2. Guarda a escala que estamos editando para uso posterior no submit
     this.editingSchedule = schedule;
-
     // 3. Preenche os campos do formulário com os dados da escala
     document.getElementById('data').value = schedule.scheduleDate.split('T')[0]; // Formato YYYY-MM-DD
     document.getElementById('cifras').value = schedule.cifras || '';
-
     // Preenche as cores
     if (schedule.paletaCores && schedule.paletaCores.length === 3) {
         document.getElementById('cor1').value = schedule.paletaCores[0];
         document.getElementById('cor2').value = schedule.paletaCores[1];
         document.getElementById('cor3').value = schedule.paletaCores[2];
     }
-
     // Preenche as músicas
     this.musicas = (schedule.songs || []).map(song => ({
         nome: song.songName,
         link: song.youtubeLink
     }));
     this.renderMusicasContainer();
-
     // Preenche os músicos nos selects
     // Primeiro, limpa todos os selects
     const allSelects = ['bateria', 'baixo', 'teclado', 'violao', 'guitarra', 'percussao', 'vocal1', 'vocal2', 'vocal3', 'vocal4', 'vocal5', 'vocal6'];
@@ -1019,11 +960,9 @@ editSchedule(scheduleId) {
         const select = document.getElementById(id);
         if (select) select.value = '';
     });
-
     // Agora, preenche os selects com os músicos da escala
     const vocalSelects = allSelects.filter(id => id.startsWith('vocal'));
     let vocalIndex = 0;
-
     (schedule.participations || []).forEach(p => {
         const instrument = p.instrument.toLowerCase();
         if (instrument === 'vocal') {
@@ -1042,42 +981,34 @@ editSchedule(scheduleId) {
             }
         }
     });
-
     // 4. Melhora a experiência do usuário (UX)
     const submitBtnText = document.getElementById('submitBtnText');
     if(submitBtnText) submitBtnText.textContent = 'Salvar Alterações'; // Muda o texto do botão
-    
     const cancelBtn = document.getElementById('cancelarEdicaoBtn');
     if(cancelBtn) cancelBtn.classList.remove('hidden'); // Mostra o botão de cancelar
-    
     const form = document.getElementById('escalaForm');
     if(form) form.scrollIntoView({ behavior: 'smooth' }); // Rola a tela para o formulário
 }
-      
       async handlePasswordChange(e) {
         e.preventDefault();
         const currentPassword = document.getElementById('senhaAtual').value;
         const newPassword = document.getElementById('novaSenhaInput').value;
         const confirmPassword = document.getElementById('confirmarSenha').value;
-
         if (newPassword !== confirmPassword) {
           this.showToast('Nova senha e confirmação não coincidem', 'error');
           return;
         }
-
         try {
           await this.apiFetch('/auth/change-password', {
             method: 'POST',
             body: JSON.stringify({ currentPassword, newPassword })
           });
-
           this.showToast('Senha alterada com sucesso!', 'success');
           this.hideChangePasswordModal();
         } catch (error) {
           this.showToast(error.message, 'error');
         }
       }
-      
   // Função handleScheduleSubmit CORRIGIDA
       async handleScheduleSubmit(e) {
         e.preventDefault();
@@ -1086,9 +1017,7 @@ editSchedule(scheduleId) {
           this.showToast('Por favor, preencha a data da escala', 'error');
           return;
         }
-
         // --- INÍCIO DA CORREÇÃO ---
-
         // 1. Mapeia os IDs dos selects do HTML para os valores do ENUM do seu Prisma.
         //    (IMPORTANTE: os valores aqui 'BATERIA', 'BAIXO', etc., devem ser idênticos
         //    aos valores definidos no seu enum 'Instrument' no schema.prisma)
@@ -1106,7 +1035,6 @@ editSchedule(scheduleId) {
           'vocal5': 'VOCAL',
           'vocal6': 'VOCAL',
         };
-        
         // 2. Cria o array 'participations' no formato que o backend espera.
         const participations = [];
         Object.keys(instrumentEnumMap).forEach(selectId => {
@@ -1119,7 +1047,6 @@ editSchedule(scheduleId) {
             });
           }
         });
-
         // 3. Monta o objeto de dados final para enviar à API.
         const scheduleData = {
           scheduleDate: data,
@@ -1137,67 +1064,53 @@ editSchedule(scheduleId) {
           // O novo array de participações
           participations: participations
         };
-
         // --- FIM DA CORREÇÃO ---
-
         // 4. Verifica se o usuário está editando uma escala ou criando uma nova
         try {
           // Lógica para saber se é uma criação (POST) ou edição (PUT)
           const method = this.editingSchedule ? 'PUT' : 'POST';
           const endpoint = this.editingSchedule ? `/schedules/${this.editingSchedule.id}` : '/schedules';
           const successMessage = this.editingSchedule ? 'Escala atualizada com sucesso!' : 'Escala criada com sucesso!';
-
           await this.apiFetch(endpoint, {
             method: method,
             body: JSON.stringify(scheduleData)
           });
-          
           this.showToast(successMessage, 'success');
-          
           // Recarrega os dados e atualiza a interface
           await this.loadDataFromAPI();
           this.renderSchedules();
           this.renderMusicianResponses();
           this.cancelEdit(); // Limpa o formulário
-
         } catch (error) {
           // Exibe qualquer erro retornado pela API
           this.showToast(`Erro ao salvar escala: ${error.message}`, 'error');
         }
       }
-      
              async deleteSchedule(scheduleId) {
         // --- CORREÇÃO: Converte o ID de string para número ---
         const numericScheduleId = parseInt(scheduleId, 10);
-
         // Encontra a escala no array usando o ID numérico.
         const schedule = this.schedules.find(s => s.id === numericScheduleId);
-
         if (!schedule) {
           // O console.error agora mostrará os tipos, facilitando a depuração.
           console.error(`Erro ao excluir: Escala com ID ${scheduleId} (tipo: ${typeof scheduleId}) não foi encontrada no array.`);
           this.showToast("Erro: Não foi possível encontrar a escala para excluir.", "error");
           return;
         }
-
         const formattedDate = new Date(schedule.scheduleDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
-        
         if (confirm(`Tem certeza que deseja excluir a escala de ${formattedDate}?`)) {
           try {
             // A API geralmente aceita o ID como string ou número, então não precisa mudar aqui.
             await this.apiFetch(`/schedules/${scheduleId}`, { method: 'DELETE' });
             this.showToast('Escala removida com sucesso!', 'success');
-            
             await this.loadDataFromAPI();
             this.renderSchedules();
             this.renderMusicianResponses();
-
           } catch (error) {
             this.showToast(error.message, 'error');
           }
         }
       }
-
       async clearSchedules() {
         if (confirm('Tem certeza que deseja limpar TODAS as escalas? Esta ação não pode ser desfeita.')) {
           try {
@@ -1211,8 +1124,7 @@ editSchedule(scheduleId) {
           }
         }
       }
-
-      async confirmSchedule(scheduleId, musicianName) {
+      async confirmSchedule(scheduleId) {
         try {
           await this.apiFetch(`/schedules/${scheduleId}/confirm`, { method: 'POST' });
           this.showToast('Presença confirmada com sucesso!', 'success');
@@ -1222,28 +1134,34 @@ editSchedule(scheduleId) {
           this.showToast(error.message, 'error');
         }
       }
+      async requestChange(scheduleId, requestType = 'CHANGE') {
+        let reason;
+        if (requestType === 'RECUSED') {
+            reason = 'Recusou a escala.';
+        } else {
+            reason = prompt('Por favor, informe o motivo da solicitação de troca:');
+            if (!reason || !reason.trim()) {
+                return; // Cancela se o usuário clicar em "Cancelar" ou deixar em branco
+            }
+            reason = reason.trim();
+        }
 
-      async requestChange(scheduleId, musicianName) {
-        const reason = prompt('Por favor, informe o motivo da solicitação de troca/recusa:');
-        if (reason && reason.trim()) {
-          try {
+        try {
             await this.apiFetch(`/schedules/${scheduleId}/request-change`, {
-              method: 'POST',
-              body: JSON.stringify({ reason: reason.trim() })
+                method: 'POST',
+                body: JSON.stringify({ reason: reason })
             });
             this.showToast('Solicitação enviada com sucesso!', 'success');
             await this.loadDataFromAPI();
             this.renderMusicianSchedules();
-          } catch(error) {
+        } catch(error) {
             this.showToast(error.message, 'error');
-          }
         }
       }
 async removeConfirmation(scheduleId, userId) {
     if (!confirm(`Tem certeza que deseja REMOVER a confirmação de presença de ${this.users.find(u => u.id === userId)?.name || 'este músico'}?`)) {
         return;
     }
-
     try {
         // --- CORREÇÃO: Adiciona o userId como query parameter na URL ---
         await this.apiFetch(`/schedules/${scheduleId}/confirm?userId=${userId}`, {
@@ -1269,35 +1187,27 @@ async removeConfirmation(scheduleId, userId) {
           }
         }
       }
-
       // --- Métodos de UI e Renderização ---
-      
       showMusicianRegistration() {
         document.getElementById('cadastroMusicoModal').classList.remove('hidden');
       }
-
       hideMusicianRegistration() {
         document.getElementById('cadastroMusicoModal').classList.add('hidden');
         document.getElementById('formCadastroMusico').reset();
         const checkboxes = ['instBateria', 'instBaixo', 'instTeclado', 'instViolao', 'instGuitarra', 'instPercussao', 'instVocal'];
         checkboxes.forEach(id => { if (document.getElementById(id)) document.getElementById(id).checked = false; });
       }
-
       showMusicianConsultation() {
         document.getElementById('consultaMusicoModal').classList.remove('hidden');
         this.renderMusicians();
       }
-
       hideMusicianConsultation() {
         document.getElementById('consultaMusicoModal').classList.add('hidden');
       }
-
    // DENTRO DA CLASSE EscalaSystem
-
 renderMusicians(searchTerm = '') {
     // Filtra para pegar apenas usuários com a role 'musician'
     let filteredMusicians = this.users.filter(u => u.role === 'musician');
-
     // Se houver um termo de busca, filtra os resultados
     if (searchTerm) {
         const lowerSearchTerm = searchTerm.toLowerCase();
@@ -1308,63 +1218,50 @@ renderMusicians(searchTerm = '') {
             (m.instruments && m.instruments.map(inst => inst.instrument).join(' ').toLowerCase().includes(lowerSearchTerm))
         );
     }
-
     const container = document.getElementById('musicosList');
     if (!container) return; // Garante que o container existe
-    
     // Se não encontrar músicos, exibe uma mensagem
     if (filteredMusicians.length === 0) {
         container.innerHTML = `<div class="text-center py-8"><p class="text-gray-600 dark:text-gray-400">Nenhum músico encontrado.</p></div>`;
         return;
     }
-
     // Cria o HTML para cada músico encontrado
     container.innerHTML = filteredMusicians.map(musician => `
         <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border dark:border-gray-600">
             <div class="flex justify-between items-start">
                 <div class="flex-1 space-y-1 text-sm text-gray-600 dark:text-gray-400">
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white">${musician.name || musician.username}</h3>
-                    
                     <p><span class="font-medium">Usuário:</span> ${musician.username}</p>
-                    
                     <!-- =====> 1. CAMPO DE EMAIL ADICIONADO AQUI <===== -->
                     <p><span class="font-medium">Email:</span> ${musician.email || 'Não informado'}</p>
-                    
                     <p><span class="font-medium">Instrumentos:</span> ${musician.instruments && musician.instruments.length > 0 ? musician.instruments.map(inst => inst.instrument).join(', ') : 'Não informado'}</p>
                 </div>
                 <div class="flex items-center gap-2">
                     <!-- =====> 2. BOTÃO DE EDITAR ADICIONADO AQUI <===== -->
                     <button onclick="escalaSystem.showEditMusicianModal(${musician.id})" class="px-3 py-1 text-sm border border-gray-300 text-gray-700 hover:bg-gray-100 dark:border-gray-500 dark:text-gray-300 dark:hover:bg-gray-600 rounded transition-colors">Editar</button>
-                    
                     <button onclick="escalaSystem.deleteMusician(${musician.id})" class="px-3 py-1 text-sm border border-red-300 text-red-700 hover:bg-red-50 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-900/20 rounded transition-colors">Excluir</button>
                 </div>
             </div>
         </div>
     `).join('');
 }
-
       filterMusicians(searchTerm) {
         this.renderMusicians(searchTerm);
       }
-      
       showChangePasswordModal() {
         document.getElementById('changePasswordModal').classList.remove('hidden');
       }
-
       hideChangePasswordModal() {
         document.getElementById('changePasswordModal').classList.add('hidden');
         document.getElementById('formAlterarSenha').reset();
       }
-
       showAddMusicModal() {
         document.getElementById('adicionarMusicaModal').classList.remove('hidden');
       }
-
       hideAddMusicModal() {
         document.getElementById('adicionarMusicaModal').classList.add('hidden');
         document.getElementById('formAdicionarMusica').reset();
       }
-
       handleAddMusic(e) {
         e.preventDefault();
         const nome = document.getElementById('nomeMusica').value.trim();
@@ -1375,7 +1272,6 @@ renderMusicians(searchTerm = '') {
         this.hideAddMusicModal();
         this.showToast('Música adicionada à lista!', 'success');
       }
-
       renderMusicasContainer() {
         const container = document.getElementById('musicasContainer');
         if (this.musicas.length === 0) {
@@ -1393,14 +1289,11 @@ renderMusicians(searchTerm = '') {
             </div>
           </div>`).join('');
       }
-
       removeMusica(index) {
         this.musicas.splice(index, 1);
         this.renderMusicasContainer();
         this.showToast('Música removida da lista', 'info');
       }
-
-     
  // Função para mostrar apenas os músicos que tocam o instrumento específico
       populateMusiciansInSelects() {
         const musicians = this.users.filter(u => u.role === 'musician');
@@ -1408,24 +1301,19 @@ renderMusicians(searchTerm = '') {
           'bateria', 'baixo', 'teclado', 'violao', 'guitarra', 'percussao',
           'vocal1', 'vocal2', 'vocal3', 'vocal4', 'vocal5', 'vocal6'
         ];
-
         const instrumentMapping = {
           'bateria': 'bateria', 'baixo': 'baixo', 'teclado': 'teclado',
           'violao': 'violao', 'guitarra': 'guitarra', 'percussao': 'percussao',
           'vocal1': 'vocal', 'vocal2': 'vocal', 'vocal3': 'vocal',
           'vocal4': 'vocal', 'vocal5': 'vocal', 'vocal6': 'vocal'
         };
-
         selects.forEach(selectId => {
           const select = document.getElementById(selectId);
           if (!select) return;
-
           const currentValue = select.value;
           select.innerHTML = '<option value="">Selecione</option>';
-
           const targetInstrument = instrumentMapping[selectId];
           if (!targetInstrument) return;
-
           // CORREÇÃO 1: Filtra os músicos checando o array de objetos de instrumentos
           const filteredMusicians = musicians.filter(musician => {
             if (musician.instruments && Array.isArray(musician.instruments)) {
@@ -1435,59 +1323,57 @@ renderMusicians(searchTerm = '') {
             }
             return false;
           });
-
           // CORREÇÃO 2: Adiciona os músicos filtrados, usando o ID como valor da opção
           filteredMusicians.forEach(musician => {
              const option = document.createElement('option');
-  
   // Define o ID do músico como o valor da opção
   option.value = musician.id; // <-- LINHA ADICIONADA/CORRIGIDA
-  
   // Define o nome do músico como o texto visível da opção
   option.textContent = musician.name || musician.username;
-  
   select.appendChild(option);
           });
-          
           select.value = currentValue;
         });
       }
-   
-
-
-
       filterSchedules(searchTerm) {
         this.renderSchedules(searchTerm);
       }
-
       filterMusicianSchedules(searchTerm) {
         this.renderMusicianSchedules(searchTerm);
       }
-
       // DENTRO DA CLASSE EscalaSystem
-
 renderSchedules(searchTerm = '') {
     const container = document.getElementById('escalasList');
     if (!container) return;
-
     let filteredSchedules = [...this.schedules];
+if (searchTerm) {
+    const lowerSearchTerm = searchTerm.toLowerCase();
+    filteredSchedules = this.schedules.filter(schedule => {
+        // Filtra por data (scheduleDate)
+        const dateStr = new Date(schedule.scheduleDate).toLocaleDateString('pt-BR');
+        if (dateStr.toLowerCase().includes(lowerSearchTerm)) return true;
 
-    if (searchTerm) {
-        // Esta parte do filtro pode dar erro se 'schedule.date' não existir mais.
-        // Vamos comentar por enquanto para garantir que não interfira no teste.
-        
-        filteredSchedules = this.schedules.filter(schedule =>
-            schedule.date.includes(searchTerm) ||
-            (schedule.musicas && schedule.musicas.some(m => m.nome.toLowerCase().includes(searchTerm.toLowerCase()))) ||
-            Object.values(schedule).some(value =>
-                typeof value === 'string' && value.toLowerCase().includes(searchTerm.toLowerCase())
-            )
-        );
-        
-    }
+        // Filtra por nome das músicas
+        if (schedule.songs && schedule.songs.some(song => 
+            song.songName.toLowerCase().includes(lowerSearchTerm))) return true;
 
+        // Filtra por nome dos músicos
+        if (schedule.participations && schedule.participations.some(participation => {
+            const musicianName = participation.user?.name || participation.user?.username;
+            return musicianName?.toLowerCase().includes(lowerSearchTerm);
+        })) return true;
+
+        // Filtra por cifras
+        if (schedule.cifras && schedule.cifras.toLowerCase().includes(lowerSearchTerm)) return true;
+
+        // Filtra por instrumento
+        if (schedule.participations && schedule.participations.some(participation => 
+            participation.instrument.toLowerCase().includes(lowerSearchTerm))) return true;
+
+        return false;
+    });
+}
     console.log('Renderizando escalas:', filteredSchedules.length, 'de', this.schedules.length);
-
     if (filteredSchedules.length === 0) {
         container.innerHTML = `
         <div class="text-center py-12">
@@ -1499,18 +1385,14 @@ renderSchedules(searchTerm = '') {
         `;
         return;
     }
-
     try {
         container.innerHTML = filteredSchedules.map(schedule => {
-            
             // =============================================================
             // =====> ESTA É A LINHA MAIS IMPORTANTE PARA O NOSSO TESTE <=====
             console.log('Dados da escala para o card:', schedule);
             // =============================================================
-
             // Agora chamamos a função que desenha o card
             return this.renderScheduleCard(schedule, true);
-
         }).join('');
     } catch (error) {
         console.error('Erro ao renderizar escalas:', error);
@@ -1521,23 +1403,19 @@ renderSchedules(searchTerm = '') {
         `;
     }
 }
-
 // DENTRO DA CLASSE EscalaSystem
-
 renderMusicianSchedules(searchTerm = '') {
     const container = document.getElementById('musicianScheduleList');
     if (!container) {
         console.error("Elemento 'musicianScheduleList' não encontrado no DOM.");
         return;
     }
-
     // Garante que currentUser e schedules estão carregados
     if (!this.currentUser || !this.schedules || this.schedules.length === 0) {
         container.innerHTML = `<div class="text-center py-8"><p class="text-gray-600 dark:text-gray-400">Nenhuma escala disponível ou dados não carregados.</p></div>`;
         document.getElementById('scheduleCount').textContent = 0; // Zera o contador
         return;
     }
-
     // Filtra as escalas onde o músico logado participa pelo ID do usuário
     let musicianSchedules = this.schedules.filter(schedule =>
         schedule.participations && schedule.participations.some(p => 
@@ -1545,7 +1423,6 @@ renderMusicianSchedules(searchTerm = '') {
             parseInt(p.userId, 10) === parseInt(this.currentUser.id, 10)
         )
     );
-
     // Aplica filtro de busca, se houver
     if (searchTerm) {
         const lowerSearchTerm = searchTerm.toLowerCase();
@@ -1555,19 +1432,15 @@ renderMusicianSchedules(searchTerm = '') {
             // Usa 'songs' e 'songName' conforme os dados da API
             const songsText = schedule.songs && schedule.songs.map(s => s.songName).join(' ').toLowerCase();
             const cifrasText = schedule.cifras && schedule.cifras.toLowerCase();
-
             return dateStr.includes(lowerSearchTerm) || 
                    (songsText && songsText.includes(lowerSearchTerm)) || 
                    (cifrasText && cifrasText.includes(lowerSearchTerm));
         });
     }
-
     // Ordena as escalas por data (as mais recentes primeiro)
     musicianSchedules.sort((a, b) => new Date(b.scheduleDate) - new Date(a.scheduleDate));
-
     // Atualiza o contador de escalas visíveis
     document.getElementById('scheduleCount').textContent = musicianSchedules.length;
-
     if (musicianSchedules.length === 0) {
         container.innerHTML = `
             <div class="text-center py-12">
@@ -1582,14 +1455,11 @@ renderMusicianSchedules(searchTerm = '') {
           `;
         return;
     }
-
     container.innerHTML = musicianSchedules.map(schedule => this.renderMusicianScheduleCard(schedule)).join('');
 }
-
 getMusicianInstruments(schedule, musicianId) {
     const instruments = [];
     const participations = schedule.participations || [];
-    
     participations.forEach(participation => {
         // Converte ambos para número para garantir comparação correta
         if (parseInt(participation.userId, 10) === parseInt(musicianId, 10)) {
@@ -1598,10 +1468,8 @@ getMusicianInstruments(schedule, musicianId) {
             instruments.push(instrumentName);
         }
     });
-    
     return instruments;
 }
-
 // Adicione também esta função auxiliar para formatar os nomes dos instrumentos
 getFriendlyInstrumentName(instrumentEnum) {
     const friendlyNames = {
@@ -1615,8 +1483,6 @@ getFriendlyInstrumentName(instrumentEnum) {
     };
     return friendlyNames[instrumentEnum] || instrumentEnum;
 }
-
-
 // SUBSTITUA A SUA FUNÇÃO ANTIGA POR ESTA
 renderScheduleCard(schedule, showActions) {
     // --- INÍCIO DA CORREÇÃO ---
@@ -1624,13 +1490,11 @@ renderScheduleCard(schedule, showActions) {
     const participations = schedule.participations || [];
     const songs = schedule.songs || [];
     const colors = Array.isArray(schedule.paletaCores) ? schedule.paletaCores : ['#4F46E5', '#3B82F6', '#10B981'];
-
     const formatDate = (dateString) => {
         const date = new Date(dateString);
         // Corrige o problema comum de fuso horário que mostra um dia a menos
         const userTimezoneOffset = date.getTimezoneOffset() * 60000;
         const correctedDate = new Date(date.getTime() + userTimezoneOffset);
-        
         return correctedDate.toLocaleDateString('pt-BR', {
             weekday: 'long',
             year: 'numeric',
@@ -1638,7 +1502,6 @@ renderScheduleCard(schedule, showActions) {
             day: 'numeric'
         });
     };
-
     // Botões de ação (Editar/Excluir) para a visão do admin
     const actionsHtml = showActions ? `
       <div class="flex gap-2">
@@ -1652,7 +1515,97 @@ renderScheduleCard(schedule, showActions) {
         </button>
       </div>
     ` : '';
-
+    // --- NOVO BLOCO: STATUS DE PRESENÇA DOS MÚSICOS ---
+    const presenceStatusHtml = `
+        ${participations.length > 0 ? `
+        <div class="border-t pt-4 mt-4">
+            <h4 class="font-semibold text-gray-900 dark:text-white mb-3">Status de Presença:</h4>
+            <div class="space-y-2">
+                ${participations.map(p => {
+                    const musician = p.user ? (p.user.name || p.user.username) : 'Usuário não encontrado';
+                    const instrumentName = this.getFriendlyInstrumentName(p.instrument);
+                    const isConfirmed = schedule.confirmations && schedule.confirmations.some(c =>
+                        parseInt(c.userId, 10) === parseInt(p.userId, 10)
+                    );
+                    return `
+                        <div class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                            <span class="text-sm text-gray-700 dark:text-gray-300">${instrumentName}: ${musician}</span>
+                            ${isConfirmed ? `
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                                    <svg class="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                    Confirmado
+                                </span>
+                            ` : `
+                                <span class="text-xs text-gray-500 dark:text-gray-400">Pendente</span>
+                            `}
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        </div>
+        ` : ''}
+    `;
+    // --- NOVO BLOCO: RESPOSTAS DOS MÚSICOS ---
+    const responsesHtml = `
+        <div class="border-t pt-4 mt-4">
+            <h4 class="font-semibold text-gray-900 dark:text-white mb-3">Respostas dos Músicos</h4>
+            <div class="space-y-2">
+                <!-- Presenças Confirmadas -->
+                ${schedule.confirmations && schedule.confirmations.length > 0 ? `
+                    <div class="flex items-center gap-2">
+                        <svg class="h-5 w-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Presenças Confirmadas:</span>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        ${schedule.confirmations.map(c => {
+                            const musician = this.users.find(u => u.id === parseInt(c.userId, 10));
+                            return `<span class="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 rounded-full text-xs">${musician ? musician.name || musician.username : 'Usuário não encontrado'}</span>`;
+                        }).join('')}
+                    </div>
+                ` : ''}
+                
+                <!-- Recusas -->
+                ${schedule.changeRequests && schedule.changeRequests.some(r => r.reason === 'Recusou a escala.') ? `
+                    <div class="flex items-center gap-2 mt-3">
+                        <svg class="h-5 w-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Recusas:</span>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        ${schedule.changeRequests.filter(r => r.reason === 'Recusou a escala.').map(r => {
+                            const musician = this.users.find(u => u.id === parseInt(r.userId, 10));
+                            return `<div class="bg-red-50 dark:bg-red-900/20 p-2 rounded text-sm border border-red-200 dark:border-red-800">
+                                <strong>${musician ? musician.name || musician.username : 'Usuário não encontrado'}</strong> - ${r.reason}
+                            </div>`;
+                        }).join('')}
+                    </div>
+                ` : ''}
+                
+                <!-- Trocas (Solicitações) -->
+                ${schedule.changeRequests && schedule.changeRequests.some(r => r.reason !== 'Recusou a escala.') ? `
+                    <div class="flex items-center gap-2 mt-3">
+                        <svg class="h-5 w-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                        </svg>
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Solicitações de Troca:</span>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        ${schedule.changeRequests.filter(r => r.reason !== 'Recusou a escala.').map(r => {
+                            const musician = this.users.find(u => u.id === parseInt(r.userId, 10));
+                            return `<div class="bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded text-sm border border-yellow-200 dark:border-yellow-800">
+                                <strong>${musician ? musician.name || musician.username : 'Usuário não encontrado'}</strong> - ${r.reason}
+                            </div>`;
+                        }).join('')}
+                    </div>
+                ` : ''}
+            </div>
+        </div>
+    `;
     return `
       <div class="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow duration-200 border-l-4" style="border-left-color: ${colors[0] || '#4F46E5'}">
         <div class="p-6">
@@ -1662,7 +1615,6 @@ renderScheduleCard(schedule, showActions) {
             </div>
             ${actionsHtml}
           </div>
-
           <!-- Musicians (Área Corrigida) -->
           <h4 class="font-semibold text-gray-900 dark:text-white mb-3">Equipe:</h4>
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-2 mb-4 text-sm">
@@ -1673,7 +1625,8 @@ renderScheduleCard(schedule, showActions) {
               </div>
             `).join('') : '<p class="text-gray-500 col-span-full">Nenhum músico escalado.</p>'}
           </div>
-
+          <!-- Status de Presença -->
+          ${presenceStatusHtml}
           <!-- Songs -->
           ${songs.length > 0 ? `
             <div class="border-t pt-4 mt-4">
@@ -1694,7 +1647,6 @@ renderScheduleCard(schedule, showActions) {
               </div>
             </div>
           ` : ''}
-
           <!-- Notes -->
           ${schedule.cifras ? `
             <div class="border-t pt-4 mt-4">
@@ -1702,7 +1654,6 @@ renderScheduleCard(schedule, showActions) {
               <p class="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">${schedule.cifras}</p>
             </div>
           ` : ''}
-
           <!-- Color palette -->
           <div class="border-t pt-4 mt-4">
             <div class="flex items-center gap-2">
@@ -1712,12 +1663,13 @@ renderScheduleCard(schedule, showActions) {
               </div>
             </div>
           </div>
+          <!-- Respostas dos Músicos -->
+          ${responsesHtml}
         </div>
       </div>
     `;
     // --- FIM DA CORREÇÃO ---
 }
-
       getColorPalette(paletaCores) {
         try {
           return paletaCores ? JSON.parse(paletaCores) : ['#4F46E5', '#3B82F6', '#10B981'];
@@ -1725,15 +1677,9 @@ renderScheduleCard(schedule, showActions) {
           return ['#4F46E5', '#3B82F6', '#10B981'];
         }
       }
-
       isConfirmed(schedule, musicianName) {
         return schedule.confirmations && schedule.confirmations[musicianName] === true;
       }
-
-     
-
-  
-
       resolveChangeRequest(scheduleId, musicianName) {
         const schedule = this.schedules.find(s => s.id == scheduleId);
         if (schedule && schedule.changeRequests) {
@@ -1748,30 +1694,29 @@ renderScheduleCard(schedule, showActions) {
           }
         }
       }
-
      // DENTRO DA CLASSE EscalaSystem
-
 // DENTRO DA CLASSE EscalaSystem
-
 renderMusicianScheduleCard(schedule) {
     // Acessa as propriedades conforme a estrutura da API
     const scheduleDate = schedule.scheduleDate; // É uma string ISO, será formatada abaixo
     const songs = schedule.songs || [];
     const participations = schedule.participations || []; // Array de participations
-
     // Formatação da Data: Usa scheduleDate, não schedule.date
-    const formattedDate = scheduleDate ? 
-        new Date(scheduleDate).toLocaleDateString('pt-BR', {
+  const formattedDate = scheduleDate ? 
+    (() => {
+        const date = new Date(scheduleDate);
+        const userTimezoneOffset = date.getTimezoneOffset() * 60000;
+        const correctedDate = new Date(date.getTime() + userTimezoneOffset);
+        return correctedDate.toLocaleDateString('pt-BR', {
             weekday: 'long',
             day: 'numeric',
             month: 'long',
             year: 'numeric'
-        }) : 
-        'Data Inválida';
-
+        });
+    })() : 
+    'Data Inválida';
     // Obtém os instrumentos do usuário logado usando o ID (mais robusto)
     const musicianInstruments = this.getMusicianInstruments(schedule, this.currentUser.id);
-
     // Mapeia todas as participações para exibir a seção "Músicos"
     const allMusiciansInScheduleHtml = participations.length > 0 ? participations.map(p => `
         <div class="flex flex-col">
@@ -1779,7 +1724,6 @@ renderMusicianScheduleCard(schedule) {
             <span class="text-gray-900 dark:text-white">${p.user ? (p.user.name || p.user.username) : 'Usuário não encontrado'}</span>
         </div>
     `).join('') : '<p class="text-gray-500 col-span-full">Nenhum músico escalado.</p>';
-
     // Mapeia as músicas
     const songsListHtml = songs.length > 0 ? songs.map((song, index) => `
         <div class="flex items-start gap-3 text-sm">
@@ -1796,7 +1740,6 @@ renderMusicianScheduleCard(schedule) {
             </div>
         </div>
     `).join('') : '<p class="text-gray-500">Nenhuma música adicionada.</p>';
-
     // Lógica crucial para os botões de confirmação/recusa/troca
     const isConfirmedForCurrentUser = schedule.confirmations && schedule.confirmations.some(c => 
         parseInt(c.userId, 10) === parseInt(this.currentUser.id, 10)
@@ -1804,14 +1747,14 @@ renderMusicianScheduleCard(schedule) {
     const hasRequestedChangeForCurrentUser = schedule.changeRequests && schedule.changeRequests.some(req => 
         parseInt(req.userId, 10) === parseInt(this.currentUser.id, 10)
     );
-    // Verificar se o usuário recusou (pode ser um tipo específico de changeRequest ou um campo dedicado 'recused')
-    // Por enquanto, vamos considerar 'Recusar' como uma 'Solicitar Troca' que o admin pode interpretar.
-    // Se tiver um status 'RECUSED' na API, precisaria de uma verificação adicional aqui.
-
+    // Nova lógica: Verifica se o usuário recusou explicitamente.
+    // Assumimos que um changeRequest com reason 'RECUSED' significa recusa.
+    const hasRefusedForCurrentUser = hasRequestedChangeForCurrentUser && schedule.changeRequests.some(req =>
+        parseInt(req.userId, 10) === parseInt(this.currentUser.id, 10) && req.reason === 'Recusou a escala.'
+    );
     let statusText = 'Pendente';
     let statusColor = 'text-gray-500 dark:text-gray-400';
     let actionButtonsHtml = '';
-
     if (isConfirmedForCurrentUser) {
         statusText = 'Presença Confirmada';
         statusColor = 'text-green-600 dark:text-green-400';
@@ -1821,6 +1764,17 @@ renderMusicianScheduleCard(schedule) {
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                 </svg>
                 Confirmado
+            </button>
+        `;
+    } else if (hasRefusedForCurrentUser) {
+        statusText = 'Presença Recusada';
+        statusColor = 'text-red-600 dark:text-red-400';
+        actionButtonsHtml = `
+            <button class="px-4 py-2 bg-gray-400 text-white rounded-md cursor-not-allowed flex-1 flex items-center justify-center gap-1" disabled>
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+                Recusado
             </button>
         `;
     } else if (hasRequestedChangeForCurrentUser) {
@@ -1859,12 +1813,10 @@ renderMusicianScheduleCard(schedule) {
             </button>
         `;
     }
-
     // Obtendo a paleta de cores (se schedule.paletaCores for undefined ou vazio, usará um padrão)
     const colors = Array.isArray(schedule.paletaCores) && schedule.paletaCores.length > 0 
                    ? schedule.paletaCores 
                    : ['#4F46E5', '#3B82F6', '#10B981']; // Padrão se não houver cores
-
     return `
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow border-l-4 p-6 mb-6" style="border-left-color: ${colors[0]}">
             <div class="flex justify-between items-start mb-4">
@@ -1887,7 +1839,6 @@ renderMusicianScheduleCard(schedule) {
                     </button>
                 </div>
             </div>
-
             <div class="mb-6">
                 <h4 class="text-md font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1895,12 +1846,10 @@ renderMusicianScheduleCard(schedule) {
                     </svg>
                     Músicos
                 </h4>
-                
                 <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 text-sm">
                     ${allMusiciansInScheduleHtml}
                 </div>
             </div>
-
             ${songs.length > 0 ? `
                 <div class="mb-6">
                     <h4 class="text-md font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
@@ -1909,13 +1858,11 @@ renderMusicianScheduleCard(schedule) {
                         </svg>
                         Músicas (${songs.length})
                     </h4>
-                    
                     <div class="space-y-2">
                         ${songsListHtml}
                     </div>
                 </div>
             ` : ''}
-
             ${schedule.cifras ? `
                 <div class="mb-6">
                     <h4 class="text-md font-semibold text-gray-900 dark:text-white mb-2">Observações/Cifras</h4>
@@ -1924,7 +1871,6 @@ renderMusicianScheduleCard(schedule) {
                     </div>
                 </div>
             ` : ''}
-
             <div class="border-t pt-4 mt-4">
                 <div class="flex items-center gap-2">
                     <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Paleta:</span>
@@ -1933,10 +1879,8 @@ renderMusicianScheduleCard(schedule) {
                     </div>
                 </div>
             </div>
-
             <div class="border-t pt-4">
                 <h4 class="text-md font-semibold text-gray-900 dark:text-white mb-3">Suas Participações</h4>
-                
                 ${musicianInstruments.length > 0 ? musicianInstruments.map(instrument => `
                     <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-3">
                         <div class="flex justify-between items-center mb-3">
@@ -1946,7 +1890,6 @@ renderMusicianScheduleCard(schedule) {
                                 ${statusText}
                             </span>
                         </div>
-                        
                         <div class="flex flex-wrap gap-2">
                             ${actionButtonsHtml}
                         </div>
@@ -1956,130 +1899,120 @@ renderMusicianScheduleCard(schedule) {
         </div>
     `;
 }
-
       generatePDF(scheduleId) {
         this.showToast('Funcionalidade de PDF em desenvolvimento', 'info');
       }
-
+// DENTRO DA CLASSE EscalaSystem
 renderMusicianResponses() {
     const container = document.getElementById('musicianResponsesList');
     if (!container) return;
-
-    const responses = this.getMusicianResponses();
-
-    if (responses.length === 0) {
+    // Primeiro, vamos criar um mapa para contar as estatísticas por músico
+    const musicianStats = {};
+    // Inicializa os dados para todos os músicos (role: 'musician')
+    this.users
+        .filter(u => u.role === 'musician')
+        .forEach(musician => {
+            musicianStats[musician.id] = {
+                id: musician.id,
+                name: musician.name || musician.username,
+                totalSchedules: 0,
+                confirmations: 0,
+                changeRequests: 0
+            };
+        });
+    // Agora, percorre todas as escalas para preencher as estatísticas
+    this.schedules.forEach(schedule => {
+        // Verifica se há participações
+        if (schedule.participations && Array.isArray(schedule.participations)) {
+            schedule.participations.forEach(participation => {
+                const musicianId = parseInt(participation.userId, 10);
+                if (musicianStats[musicianId]) {
+                    musicianStats[musicianId].totalSchedules++;
+                }
+            });
+        }
+        // Conta as confirmações
+        if (schedule.confirmations && Array.isArray(schedule.confirmations)) {
+            schedule.confirmations.forEach(confirmation => {
+                const musicianId = parseInt(confirmation.userId, 10);
+                if (musicianStats[musicianId]) {
+                    musicianStats[musicianId].confirmations++;
+                }
+            });
+        }
+        // Conta as solicitações de troca NÃO RESOLVIDAS
+        if (schedule.changeRequests && Array.isArray(schedule.changeRequests)) {
+            schedule.changeRequests.forEach(request => {
+                if (!request.resolved) { // Conta apenas as pendentes
+                    const musicianId = parseInt(request.userId, 10);
+                    if (musicianStats[musicianId]) {
+                        musicianStats[musicianId].changeRequests++;
+                    }
+                }
+            });
+        }
+    });
+    // Converte o objeto em um array e ordena por nome
+    const statsArray = Object.values(musicianStats).sort((a, b) => a.name.localeCompare(b.name));
+    // Se não houver músicos, mostra mensagem
+    if (statsArray.length === 0) {
         container.innerHTML = `
             <div class="flex flex-col items-center justify-center py-8 text-center">
                 <svg class="h-12 w-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
-                <p class="text-gray-500 dark:text-gray-400 text-sm">Nenhuma resposta dos músicos ainda</p>
+                <p class="text-gray-500 dark:text-gray-400 text-sm">Nenhum músico cadastrado ou dados não carregados.</p>
             </div>
         `;
         return;
     }
-
-    const groupedBySchedule = {};
-    responses.forEach(response => {
-        if (!groupedBySchedule[response.scheduleId]) {
-            groupedBySchedule[response.scheduleId] = {
-                schedule: response.schedule,
-                responses: []
-            };
+    // Renderiza os cards no novo formato
+    container.innerHTML = statsArray.map(musician => {
+        const total = musician.totalSchedules;
+        const confirmed = musician.confirmations;
+        const requested = musician.changeRequests;
+        const responseRate = total > 0 ? Math.round((confirmed / total) * 100) : 0;
+        // Define a cor da taxa de resposta
+        let rateColorClass = 'text-red-600 dark:text-red-400'; // Vermelho por padrão (0%)
+        if (responseRate === 100) {
+            rateColorClass = 'text-green-600 dark:text-green-400';
+        } else if (responseRate > 0) {
+            rateColorClass = 'text-yellow-600 dark:text-yellow-400';
         }
-        groupedBySchedule[response.scheduleId].responses.push(response);
-    });
-
-    container.innerHTML = Object.values(groupedBySchedule).map(group => `
-        <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-4">
-            <div class="flex items-center gap-2 mb-3">
-                <h4 class="font-semibold text-gray-900 dark:text-white">
-                    ${new Date(group.schedule.scheduleDate).toLocaleDateString('pt-BR', {
-                        weekday: 'long',
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric'
-                    })}
-                </h4>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                ${group.responses.map(response => `
-                    <div class="flex items-center justify-between p-3 rounded-lg ${
-                        response.type === 'confirmation' 
-                            ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
-                            : 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800'
-                    }">
-                        <div class="flex items-center gap-2">
-                            ${response.type === 'confirmation' ? `
-                                <svg class="h-4 w-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                </svg>
-                            ` : `
-                                <svg class="h-4 w-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
-                                </svg>
-                            `}
-                            <div>
-                                <p class="font-medium text-sm ${
-                                    response.type === 'confirmation' 
-                                        ? 'text-green-800 dark:text-green-200'
-                                        : 'text-yellow-800 dark:text-yellow-200'
-                                }">
-                                    ${response.musician}
-                                </p>
-                                <p class="text-xs ${
-                                    response.type === 'confirmation' 
-                                        ? 'text-green-600 dark:text-green-300'
-                                        : 'text-yellow-600 dark:text-yellow-300'
-                                }">
-                                    ${response.type === 'confirmation' ? 'Confirmou presença' : 'Solicitou troca'}
-                                </p>
-                                ${response.reason ? `
-                                    <p class="text-xs ${
-                                        response.type === 'confirmation' 
-                                            ? 'text-green-600 dark:text-green-300'
-                                            : 'text-yellow-600 dark:text-yellow-300'
-                                    } mt-1">
-                                        "${response.reason}"
-                                    </p>
-                                ` : ''}
-                            </div>
-                        </div>
-                        <span class="text-xs ${
-                            response.type === 'confirmation' 
-                                ? 'text-green-500'
-                                : 'text-yellow-500'
-                        }">
-                            ${new Date(response.date).toLocaleTimeString('pt-BR', { 
-                                hour: '2-digit', 
-                                minute: '2-digit' 
-                            })}
-                        </span>
-                        ${response.type === 'confirmation' ? `
-                            <button onclick="escalaSystem.removeConfirmation(${response.scheduleId}, ${response.userId})" 
-                                class="ml-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 text-xs">
-                                X
-                            </button>
-                        ` : ''}
+        return `
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow duration-200 border border-gray-200 dark:border-gray-700 p-6 mb-4">
+                <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4">${musician.name}</h3>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600 dark:text-gray-400">Total de escalas:</span>
+                        <span class="font-medium text-gray-900 dark:text-white">${total}</span>
                     </div>
-                `).join('')}
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600 dark:text-gray-400">Confirmações:</span>
+                        <span class="font-medium text-green-600 dark:text-green-400">${confirmed}</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600 dark:text-gray-400">Solicitações de troca:</span>
+                        <span class="font-medium text-yellow-600 dark:text-yellow-400">${requested}</span>
+                    </div>
+                    <div class="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-gray-700 mt-2">
+                        <span class="text-gray-600 dark:text-gray-400 font-medium">Taxa de resposta:</span>
+                        <span class="font-bold ${rateColorClass}">${responseRate}%</span>
+                    </div>
+                </div>
             </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
-
 // DENTRO DA CLASSE EscalaSystem
-
 getMusicianResponses() {
     const responses = [];
-    
     this.schedules.forEach(schedule => {
         // Processa Confirmações (agora é um ARRAY de objetos)
         if (schedule.confirmations && Array.isArray(schedule.confirmations)) {
             schedule.confirmations.forEach(confirmation => {
                 // Encontra o usuário correspondente no array this.users
                 const confirmedUser = this.users.find(u => u.id === parseInt(confirmation.userId, 10));
-                
                 if (confirmedUser) { // Apenas se o usuário for encontrado
                     responses.push({
                         type: 'confirmation',
@@ -2091,13 +2024,11 @@ getMusicianResponses() {
                 }
             });
         }
-        
         // Processa Solicitações de Troca (já é um ARRAY de objetos)
         if (schedule.changeRequests && Array.isArray(schedule.changeRequests)) {
             schedule.changeRequests.forEach(request => {
                 // Encontra o usuário correspondente no array this.users
                 const requestedUser = this.users.find(u => u.id === parseInt(request.userId, 10));
-
                 if (requestedUser) { // Apenas se o usuário for encontrado
                     responses.push({
                         type: 'changeRequest',
@@ -2112,36 +2043,29 @@ getMusicianResponses() {
             });
         }
     });
-    
     // Ordenar por data mais recente primeiro
     return responses.sort((a, b) => new Date(b.date) - new Date(a.date));
 }
-
 // E na sua renderMusicianResponses(), você pode usar o `response.resolved`
 // para mostrar o status ou um botão de "Marcar como Resolvida"
 // (A lógica de renderização para o admin já estava boa, mas a fonte de dados precisava ser corrigida)
       // DENTRO DA CLASSE EscalaSystem
-
 cancelEdit() {
     // 1. Limpa a variável que guarda a escala em edição
     this.editingSchedule = null;
-
     // 2. Reseta todos os campos do formulário para seus valores padrão (mais eficiente)
     const form = document.getElementById('escalaForm');
     if (form) {
         form.reset();
     }
-
     // 3. Limpa a lista de músicas temporárias que estavam no formulário
     this.musicas = [];
     this.renderMusicasContainer(); // Atualiza a UI para mostrar a lista de músicas vazia
-
     // 4. (Opcional, mas boa prática de UX) Altera o texto do botão de volta para "Criar"
     const submitBtnText = document.getElementById('submitBtnText');
     if (submitBtnText) {
         submitBtnText.textContent = 'Criar Escala';
     }
-
     // Esconde o botão "Cancelar Edição", se ele existir e estiver visível
     const cancelBtn = document.getElementById('cancelarEdicaoBtn');
     if (cancelBtn) {
@@ -2149,8 +2073,6 @@ cancelEdit() {
     }
 }
     }
-    
-
     // Initialize the system
     const escalaSystem = new EscalaSystem();
   </script>

@@ -261,4 +261,17 @@ router.delete('/:id/confirm', checkAuth, async (req, res) => {
     }
 });
 
+// ====================================================================
+// ROTA DELETE /api/schedules - Deletar TODAS as escalas (CUIDADO!)
+// ====================================================================
+router.delete('/', [checkAuth, checkAdmin], async (req, res) => {
+    try {
+        await prisma.schedule.deleteMany({});
+        res.status(200).json({ message: 'Todas as escalas foram excluídas.' });
+    } catch (error) {
+        console.error("Erro ao deletar todas as escalas:", error);
+        res.status(500).json({ message: "Erro interno ao deletar as escalas." });
+    }
+});
+
 module.exports = router;
