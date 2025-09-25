@@ -2,6 +2,7 @@
 require('dotenv').config(); // Carrega as variáveis de ambiente do .env
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 
 const authRoutes = require('./routes/auth');
 const usersRoutes = require('./routes/users');
@@ -12,6 +13,7 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Rotas da API
 app.use('/api/auth', authRoutes);
