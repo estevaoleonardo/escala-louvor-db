@@ -300,7 +300,7 @@
           <div class="border-t pt-6">
             <div class="flex justify-between items-center mb-4">
               <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Músicas</h3>
-              <button type="button" id="adicionarMusicaBtn" class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors text-sm">
+              <button type="button" id="adicionarMusicaBtn" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors text-sm">
                 <svg class="h-4 w-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                 </svg>
@@ -366,18 +366,27 @@
         </div>
       </div>
 
-      <!-- Musicians Responses -->
-      <div class="mb-6 shadow-lg border-0 bg-white dark:bg-gray-800 rounded-lg p-6">
-        <h2 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
-          <svg class="h-5 w-5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-          </svg>
-          Respostas dos Músicos
-        </h2>
-        <div id="musicianResponsesList" class="min-h-32">
-          <!-- Respostas dos músicos serão listadas aqui -->
-        </div>
-      </div>
+<!-- Musicians Responses -->
+<div class="mb-6 shadow-lg border-0 bg-white dark:bg-gray-800 rounded-lg p-6">
+ <!-- Dentro do cabeçalho da seção -->
+<div class="flex justify-between items-center mb-4">
+  <h2 class="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+    <svg class="h-4 w-4 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+    </svg>
+    Respostas dos Músicos
+  </h2>
+  <button id="toggleResponsesBtn" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg transition flex items-center gap-2">
+    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+    </svg>
+    Ocultar/Mostrar
+  </button>
+</div>
+  <div id="musicianResponsesList" class="min-h-32">
+    <!-- Respostas dos músicos serão listadas aqui -->
+  </div>
+</div>
 
       <!-- Schedules List -->
       <div class="shadow-lg border-0 bg-white dark:bg-gray-800 rounded-lg p-6">
@@ -902,6 +911,7 @@ async handleMusicianRegistration(e) {
         this.showToast(error.message, 'error');
     }
 }
+
 // DENTRO DA CLASSE EscalaSystem
 async deleteMusician(musicianId) {
   // Converte o ID recebido (que pode ser string) para número
@@ -929,6 +939,7 @@ async deleteMusician(musicianId) {
     }
   }
 }
+
 editSchedule(scheduleId) {
     // 1. Encontra o objeto completo da escala usando o ID que recebemos
     const schedule = this.schedules.find(s => s.id === scheduleId);
@@ -1902,10 +1913,13 @@ renderMusicianScheduleCard(schedule) {
       generatePDF(scheduleId) {
         this.showToast('Funcionalidade de PDF em desenvolvimento', 'info');
       }
+
+      
 // DENTRO DA CLASSE EscalaSystem
 renderMusicianResponses() {
     const container = document.getElementById('musicianResponsesList');
     if (!container) return;
+    
     // Primeiro, vamos criar um mapa para contar as estatísticas por músico
     const musicianStats = {};
     // Inicializa os dados para todos os músicos (role: 'musician')
@@ -1920,6 +1934,7 @@ renderMusicianResponses() {
                 changeRequests: 0
             };
         });
+    
     // Agora, percorre todas as escalas para preencher as estatísticas
     this.schedules.forEach(schedule => {
         // Verifica se há participações
@@ -1952,8 +1967,10 @@ renderMusicianResponses() {
             });
         }
     });
+    
     // Converte o objeto em um array e ordena por nome
     const statsArray = Object.values(musicianStats).sort((a, b) => a.name.localeCompare(b.name));
+    
     // Se não houver músicos, mostra mensagem
     if (statsArray.length === 0) {
         container.innerHTML = `
@@ -1964,14 +1981,19 @@ renderMusicianResponses() {
                 <p class="text-gray-500 dark:text-gray-400 text-sm">Nenhum músico cadastrado ou dados não carregados.</p>
             </div>
         `;
+        
+        // Garante que o botão funcione mesmo sem músicos
+        this._setupToggleEvent();
         return;
     }
+    
     // Renderiza os cards no novo formato
     container.innerHTML = statsArray.map(musician => {
         const total = musician.totalSchedules;
         const confirmed = musician.confirmations;
         const requested = musician.changeRequests;
         const responseRate = total > 0 ? Math.round((confirmed / total) * 100) : 0;
+        
         // Define a cor da taxa de resposta
         let rateColorClass = 'text-red-600 dark:text-red-400'; // Vermelho por padrão (0%)
         if (responseRate === 100) {
@@ -1979,6 +2001,7 @@ renderMusicianResponses() {
         } else if (responseRate > 0) {
             rateColorClass = 'text-yellow-600 dark:text-yellow-400';
         }
+        
         return `
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow duration-200 border border-gray-200 dark:border-gray-700 p-6 mb-4">
                 <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4">${musician.name}</h3>
@@ -2003,6 +2026,31 @@ renderMusicianResponses() {
             </div>
         `;
     }).join('');
+    
+    // ✅ Configura o evento do botão após renderizar tudo
+    this._setupToggleEvent();
+}
+
+// Método auxiliar para configurar o evento do botão (evita duplicação)
+_setupToggleEvent() {
+    const toggleBtn = document.getElementById('toggleResponsesBtn');
+    const container = document.getElementById('musicianResponsesList');
+    
+    if (toggleBtn && container) {
+        // Remove evento anterior (se existir)
+        toggleBtn.removeEventListener('click', this._toggleHandler);
+        
+        // Define o novo handler
+        this._toggleHandler = () => {
+            container.classList.toggle('hidden');
+            toggleBtn.textContent = container.classList.contains('hidden')
+                ? 'Mostrar Respostas'
+                : 'Ocultar Respostas';
+        };
+        
+        // Adiciona o evento
+        toggleBtn.addEventListener('click', this._toggleHandler);
+    }
 }
 // DENTRO DA CLASSE EscalaSystem
 getMusicianResponses() {
@@ -2072,6 +2120,7 @@ cancelEdit() {
         cancelBtn.classList.add('hidden');
     }
 }
+
     }
     // Initialize the system
     const escalaSystem = new EscalaSystem();
