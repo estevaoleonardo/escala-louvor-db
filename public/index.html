@@ -1514,18 +1514,24 @@ renderScheduleCard(schedule, showActions) {
         });
     };
     // Botões de ação (Editar/Excluir) para a visão do admin
-    const actionsHtml = showActions ? `
-      <div class="flex gap-2">
-        <button onclick="escalaSystem.editSchedule(${schedule.id})" 
-          class="px-3 py-1 text-sm border border-gray-300 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/20 rounded transition-colors">
-          Editar
-        </button>
-        <button onclick="escalaSystem.deleteSchedule(${schedule.id})" 
-          class="px-3 py-1 text-sm border border-gray-300 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-900/20 rounded transition-colors">
-          Excluir
-        </button>
-      </div>
-    ` : '';
+ // Botões de ação (Editar/Excluir/PDF) para a visão do admin
+const actionsHtml = showActions ? `
+  <div class="flex gap-2">
+    <button onclick="escalaSystem.editSchedule(${schedule.id})" 
+      class="px-3 py-1 text-sm border border-gray-300 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/20 rounded transition-colors">
+      Editar
+    </button>
+    <button onclick="escalaSystem.deleteSchedule(${schedule.id})" 
+      class="px-3 py-1 text-sm border border-gray-300 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-900/20 rounded transition-colors">
+      Excluir
+    </button>
+    <!-- BOTÃO PDF ADICIONADO AQUI, COM O MESMO PADRÃO -->
+    <button onclick="escalaSystem.generatePDF(${schedule.id})" 
+      class="px-3 py-1 text-sm border border-gray-300 hover:bg-green-50 hover:text-green-700 dark:hover:bg-green-900/20 rounded transition-colors">
+      PDF
+    </button>
+  </div>
+` : '';
     // --- NOVO BLOCO: STATUS DE PRESENÇA DOS MÚSICOS ---
     const presenceStatusHtml = `
         ${participations.length > 0 ? `
@@ -1910,10 +1916,86 @@ renderMusicianScheduleCard(schedule) {
         </div>
     `;
 }
-      generatePDF(scheduleId) {
-        this.showToast('Funcionalidade de PDF em desenvolvimento', 'info');
-      }
+generatePDF(scheduleId) {
+  // Encontra a escala pelo ID
+  const schedule = this.schedules.find(s => s.id === scheduleId);
+  if (!schedule) {
+    this.showToast('Escala não encontrada', 'error');
+    return;
+  }
 
+  // Inicializa o PDF
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  // Título
+  doc.setFontSize(18);
+  doc.text('Escala Musical', 14, 20);
+
+  // Data formatada
+  const formatDate = (dateStr) => {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+  };
+  doc.setFontSize(12);
+  doc.text(`Data: ${formatDate(schedule.scheduleDate)}`, 14, 30);
+
+  // Músicos
+  doc.text('Músicos:', 14, 40);
+  let yPos = 45;
+  const participations = schedule.participations || [];
+  if (participations.length > 0) {
+    participations.forEach(p => {
+      const name = p.user ? (p.user.name || p.user.username) : 'Desconhecido';
+      const instrument = this.getFriendlyInstrumentName(p.instrument);
+      doc.text(`${instrument}: ${name}`, 16, yPos);
+      yPos += 6;
+    });
+  } else {
+    doc.text('Nenhum músico escalado.', 16, yPos);
+    yPos += 6;
+  }
+
+  // Músicas
+  yPos += 4;
+  doc.text('Músicas:', 14, yPos);
+  yPos += 5;
+  const songs = schedule.songs || [];
+  if (songs.length > 0) {
+    songs.forEach(song => {
+      doc.text(`• ${song.songName}`, 16, yPos);
+      yPos += 6;
+      if (yPos > 280) {
+        doc.addPage();
+        yPos = 20;
+      }
+    });
+  } else {
+    doc.text('Nenhuma música cadastrada.', 16, yPos);
+    yPos += 6;
+  }
+
+  // Observações/Cifras
+  if (schedule.cifras) {
+    yPos += 4;
+    doc.text('Observações:', 14, yPos);
+    yPos += 5;
+    const splitText = doc.splitTextToSize(schedule.cifras, 180);
+    splitText.forEach(line => {
+      if (yPos > 280) {
+        doc.addPage();
+        yPos = 20;
+      }
+      doc.text(line, 16, yPos);
+      yPos += 6;
+    });
+  }
+
+  // Salva o PDF
+  const fileName = `escala_${formatDate(schedule.scheduleDate).replace(/\//g, '-')}.pdf`;
+  doc.save(fileName);
+  this.showToast('PDF gerado com sucesso!', 'success');
+}
       
 // DENTRO DA CLASSE EscalaSystem
 renderMusicianResponses() {
